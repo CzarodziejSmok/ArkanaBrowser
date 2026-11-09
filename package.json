@@ -1,0 +1,73 @@
+{
+  "name": "claude-browser",
+  "version": "31.0.0",
+  "description": "Przeglądarka z podręcznością i customizajcą w myśli.",
+  "author": "CzarodziejSmok",
+  "license": "UNLICENSED",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never",
+    "release": "electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.claude.browser",
+    "productName": "Claude Browser",
+    "copyright": "Claude Browser",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "instance.js",
+      "preload.js",
+      "ffmpeg.js",
+      "updater.js",
+      "index.html",
+      "icon.ico",
+      "icon.png",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "artifactName": "Claude-Browser-Setup.exe",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Claude Browser",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico",
+      "installerHeaderIcon": "icon.ico"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "CzarodziejSmok",
+        "repo": "claude-browser",
+        "releaseType": "release"
+      }
+    ]
+  }
+}
