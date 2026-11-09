@@ -1,6 +1,6 @@
 {
-  "name": "Browser",
-  "version": "31.0.1",
+  "name": "claude-browser",
+  "version": "31.0.2",
   "description": "Przeglądarka z podręcznością i customizajcą w myśli.",
   "author": "CzarodziejSmok",
   "license": "MIT",
@@ -65,7 +65,7 @@
       {
         "provider": "github",
         "owner": "CzarodziejSmok",
-        "repo": "claude-browser",
+        "repo": "Browser",
         "releaseType": "release"
       }
     ]
