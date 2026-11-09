@@ -1,0 +1,44 @@
+# Buduje instalator Windows i publikuje wydanie na GitHubie za każdym razem, gdy powstanie tag typu v31.0.0.
+name: Wydanie
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # pozwala dołączyć pliki do wydania
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Sprawdź, czy tag zgadza się z wersją w package.json
+        shell: bash
+        run: |
+          V=$(node -p "require('./package.json').version")
+          if [ "v$V" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME nie zgadza się z wersją v$V w package.json"
+            exit 1
+          fi
+
+      - name: Sprawdź, czy w package.json ustawiono własne repozytorium
+        shell: bash
+        run: |
+          if node -p "JSON.stringify(require('./package.json').build.publish)" | grep -qi "TWOJ-LOGIN"; then
+            echo "::error::W package.json (build.publish) nadal jest TWOJ-LOGIN-GITHUB – wpisz swój login GitHub"
+            exit 1
+          fi
+
+      - name: Instalacja zależności
+        run: npm install
+
+      - name: Budowa instalatora i publikacja wydania
+        run: npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
