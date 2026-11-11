@@ -696,9 +696,9 @@ v33  - uporządkowane ustawienia, panel ChangeLog, asystent bez auto-wysuwania
 - Kontrola wydania sprawdza obecność CHANGELOG.txt na liście build.files i wpis dla bieżącej wersji.
 
 
-==========================================================================
+**************************************************************************
 v34 - animacje ikon i kliknięć, Saper, kategorie aplikacji, wersje vx w ChangeLogu
-==========================================================================
+**************************************************************************
 - Nowa animacja po najechaniu na ikonę Arkana w lewym górnym rogu (promienie pulsują po kolei, z poświatą)
   oraz na ikonę ChangeLog (przechyla się, a linie notatki dopisują się).
 - Delikatna animacja kliknięcia przycisków: wciśnięcie i fala od miejsca kliknięcia (przyciski u góry,
