@@ -6,13 +6,16 @@ nativeTheme.themeSource = 'dark';
 // mniej pracy w tle: wyłączone usługi, których przeglądarka nie używa (Cast, podpowiedzi optymalizacji, tłumaczenie Chromium)
 app.commandLine.appendSwitch('disable-features', 'MediaRouter,OptimizationHints,Translate');
 app.commandLine.appendSwitch('disable-background-networking');
-app.setAppUserModelId('com.claude.browser');   // własna grupa i ikona na pasku zadań Windows
+app.setAppUserModelId('com.arkana.browser');   // własna grupa i ikona na pasku zadań Windows
 const ICON = path.join(__dirname, 'icon.ico');
 const inits = new Map();                       // id webContents -> stan okna oderwanego (jednorazowego)
 const winOf = e => BrowserWindow.fromWebContents(e.sender);
 // każda uruchomiona instancja ma własny profil; kolejne instancje startują z kopią stanu pierwszej (ustawienia, notatki…)
 // stały folder danych: ten sam przy uruchomieniu z npm/.bat i po instalacji (ustawienia, historia i notatki zostają przy przejściu na instalator)
-app.setPath('userData', path.join(app.getPath('appData'), 'claude-browser'));
+// stały folder danych. Przy zmianie nazwy z Claude Browser na Arkana Browser dotychczasowe dane (ustawienia, historia, notatki, logowanie w panelu) przenosimy ze starego folderu
+{ const base = app.getPath('appData'), OLD = path.join(base, 'claude-browser'), NEW = path.join(base, 'arkana-browser');
+  try { if (fs.existsSync(OLD) && !fs.existsSync(NEW)) { try { fs.renameSync(OLD, NEW); } catch { fs.cpSync(OLD, NEW, { recursive: true }); } } } catch (e) { console.error('migracja danych', e); }
+  app.setPath('userData', NEW); }
 const inst = require('./instance');
 const baseData = app.getPath('userData'), slot = inst.claimSlot(baseData);
 if (slot.n > 0) {
@@ -37,6 +40,10 @@ ipcMain.handle('win-state', e => { const w = winOf(e); return !!w && w.isMaximiz
 ipcMain.on('set-icon', (e, url) => { try { const w = winOf(e); if (w) w.setIcon(nativeImage.createFromDataURL(url)); } catch {} });
 // pobieranie kursów walut (tylko wskazane hosty, przez proces główny – bez problemów z CORS)
 const HTTP_HOSTS = ['open.er-api.com', 'api.frankfurter.dev', 'translate.googleapis.com', 'api.mymemory.translated.net'];
+ipcMain.handle('changelog-get', () => {   // CHANGELOG.txt z folderu aplikacji, czytany przy każdym otwarciu panelu
+  try { return { ok: true, text: fs.readFileSync(path.join(__dirname, 'CHANGELOG.txt'), 'utf8').replace(/^\uFEFF/, '') }; }
+  catch (e) { return { ok: false, err: String(e.message || e) }; }
+});
 ipcMain.handle('http-get', async (_e, url) => {
   try {
     const u = new URL(String(url));
@@ -105,9 +112,9 @@ ipcMain.handle('xd-drop', (e, p) => {
   h.w.webContents.send('xd', { kind: 'drop', cx: h.cx, tab: p.tab }); h.w.focus(); return true;
 });
 
-const filters = [{ name: 'Konfiguracja Claude Browser', extensions: ['json'] }];
+const filters = [{ name: 'Konfiguracja Arkana Browser', extensions: ['json'] }];
 ipcMain.handle('export-config', async (e, json, title) => {
-  const r = await dialog.showSaveDialog(winOf(e), { title: title || 'Zapisz konfigurację', defaultPath: 'claude-browser-config.json', filters });
+  const r = await dialog.showSaveDialog(winOf(e), { title: title || 'Zapisz konfigurację', defaultPath: 'arkana-browser-config.json', filters });
   if (r.canceled || !r.filePath) return null;
   fs.writeFileSync(r.filePath, json); return r.filePath;
 });
@@ -151,7 +158,7 @@ function onKey(e, i, win) {
 
 function createWindow(o = {}) {
   const win = new BrowserWindow({
-    width: o.w || 1360, height: o.h || 880, x: o.x, y: o.y, title: 'Claude Browser', backgroundColor: '#16120f',
+    width: o.w || 1360, height: o.h || 880, x: o.x, y: o.y, title: 'Arkana Browser', backgroundColor: '#16120f',
     frame: false, // własne przyciski okna rysuje index.html
     ...(fs.existsSync(ICON) ? { icon: ICON } : {}),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), webviewTag: true, contextIsolation: true }

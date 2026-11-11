@@ -1,0 +1,708 @@
+ARKANA BROWSER - CHANGELOG
+==========================
+
+Jak czyta ten plik panel ChangeLog w przeglądarce (plik jest wczytywany przy każdym uruchomieniu):
+- Nagłówek wersji to trzy linie: linia ze znaków, linia z numerem i nazwą wersji, taka sama linia ze znaków.
+- Linia ze znaków = (znak równości) oznacza wersję NIEWYDANĄ, a linia ze znaków * (gwiazdka) wersję WYDANĄ.
+  Po publikacji wersji na GitHubie wystarczy zamienić w jej nagłówku obie linie z = na *.
+- Numer wersji zapisuj na początku linii nagłówka (np. 0.33 albo 0.32.1), po nim myślnik i opis.
+- Punkty zaczynają się od "- ", a dalsze wiersze punktu zaczynają się od dwóch spacji.
+- Wpisy są pisane po polsku; w innych językach interfejsu panel tłumaczy je automatycznie.
+
+
+==========================================================================
+v1  - pierwsza wersja (Electron + odpowiedź Claude'a przez API)
+==========================================================================
+- Aplikacja na Electronie (package.json, main.js, preload.js, index.html), start przez npm install / npm start.
+- Własny pasek narzędzi: wstecz, dalej, odśwież, pole adresu/wyszukiwania, ikona ustawień.
+- Strony i wyniki Google ładowane w elemencie <webview>.
+- Wpisanie adresu otwiera stronę, wpisanie tekstu uruchamia wyszukiwanie Google.
+- Odpowiedź Claude'a nad wynikami: wywołanie API Anthropic (model Haiku, narzędzie web_search,
+  max ok. 700 tokenów, odpowiedź do ok. 120 słów, po polsku, bez markdownu).
+- Klucz API: zapisywany lokalnie i szyfrowany (safeStorage), wpisywany w ustawieniach (zębatka),
+  obsługa zmiennej środowiskowej ANTHROPIC_API_KEY.
+- Prosty ciemny wygląd.
+
+
+==========================================================================
+v2  - własny motyw zamiast "gołego" Google
+==========================================================================
+- Własna strona startowa (zamiast google.com): logo "Claude.", hasło, duże pole wyszukiwania,
+  4 kafelki skrótów (Wikipedia, YouTube, GitHub, Anthropic).
+- Ciepły ciemny motyw: brązy, akcent terakotowy, zaokrąglony pasek adresu, serifowe logo,
+  zaokrąglone okno strony, ukryte domyślne menu okna.
+- Karta z odpowiedzią Claude'a w nowym stylu (gradient, akcentowa ramka).
+- Przycisk strony startowej (domek).
+- Ciemny motyw wstrzykiwany w wyniki Google (odwrócenie kolorów CSS-em, zdjęcia bez zmian).
+
+
+==========================================================================
+v3  - panel claude.ai zamiast API, spójny wygląd z Google
+==========================================================================
+- Usunięty klucz API i ustawienia. Zamiast tego po prawej panel claude.ai (webview),
+  otwierany z zapytaniem (claude.ai/new?q=...). Logowanie zapamiętywane (partition persist:claude),
+  user-agent Chrome, żeby strona działała w Electronie.
+- Przeciągany pasek podziału między wynikami a panelem, przycisk panelu, zamknięcie panelu.
+- Wyniki Google w ciemnym motywie przeglądarki: nativeTheme=dark + wstrzykiwany CSS
+  (tło, tytuły w kolorze akcentu, pole wyszukiwania) zamiast odwracania kolorów.
+- Pasek tytułu w kolorach motywu (titleBarOverlay), przeciągalny górny pasek.
+- Okno z wynikami bez marginesu i zaokrągleń - zlewa się z obramówką przeglądarki.
+- Pliki startowe Uruchom-Claude-Browser.bat / .vbs.
+
+
+==========================================================================
+v4  - karty, foldery, pamięć sesji, animowane tło
+==========================================================================
+- Wiele kart: przycisk +, zamykanie krzyżykiem i środkowym przyciskiem myszy, ikona i tytuł strony.
+- Foldery kart po lewej: 2 domyślne ("Praca", "Prywatne"), dodawanie, zmiana nazwy (ołówek / dwuklik),
+  usuwanie z potwierdzeniem. Każdy folder ma własny zestaw kart (strony ładowane leniwie).
+- Pamięć sesji: foldery, karty, aktywna karta, stan i szerokość panelu zapisują się i wracają po restarcie.
+- Animowane tło strony startowej (canvas): świecący pył i fale.
+- Linki otwierane w nowym oknie (target=_blank) otwierają nową kartę (przywrócony preload.js).
+
+
+==========================================================================
+v5  - naprawa startu i pamięci, zwijany pasek folderów, ikony folderów
+==========================================================================
+- Naprawa: brak funkcji z preloadu nie zatrzymuje już aplikacji (pasek wyszukiwania działał dopiero po zmianie).
+- Stan zapisywany do pliku state.json przez proces główny (obok localStorage) - karty nie giną przy zamknięciu.
+- F12 otwiera narzędzia deweloperskie (diagnostyka).
+- Pasek folderów zwija się do samych ikon (52 px) i płynnie rozsuwa po najechaniu (nad treścią,
+  bez przeładowywania stron).
+- Zmiana ikony folderu: paleta 24 emoji + własne emoji; ikona zapisywana per folder.
+- Akcje folderu (ikona, nazwa, usuń) pojawiają się po najechaniu.
+
+
+==========================================================================
+v6  - skalowanie kart jak w Operze GX, skróty klawiszowe
+==========================================================================
+- Pasek kart skaluje się bez limitu: karty się zwężają, nieaktywnym znika krzyżyk, potem zostaje sama ikona.
+- Przycisk + jest na stałe przypięty po prawej (nie ucieka przy wielu kartach).
+- Nazwy folderów nie są ucinane (ikony akcji nakładają się dopiero po najechaniu), rozwinięty pasek 184 px.
+- Skróty (obsługiwane w procesie głównym, działają też gdy fokus jest na stronie):
+  Ctrl+T nowa karta, Ctrl+W zamknij, Ctrl+Shift+N nowy folder, Ctrl+Tab / Ctrl+Shift+Tab, Ctrl+L.
+- Naprawa: nowy folder nie zatwierdza się od razu jako "Folder 3" (fokus nie ucieka do pola wyszukiwania).
+- Podpowiedź z pełnym tytułem karty.
+
+
+==========================================================================
+v7  - ustawienia: kolory, efekty, obraz tła, plik konfiguracji
+==========================================================================
+- Szuflada ustawień (zębatka, Ctrl+,): sekcja Motyw.
+- Kolor tła: 14 gotowych kolorów, suwaki Nasycenie i Jasność, tryb zaawansowany z panelem RGB i polem hex.
+- Kolor akcentu: 9 kolorów.
+- Efekty tła z suwakami 0-100 i suwakiem ogólnym: świecący pył, fale, migoczące gwiazdy, zorza, deszcz światła.
+- Własny obraz tła (zmniejszany do 1920 px): krycie, rozmycie, przyciemnienie, nasycenie, dopasowanie.
+- Zapis konfiguracji do pliku JSON, wczytanie z pliku, przywracanie domyślnych (okna dialogowe plików przez main.js).
+- Cała paleta (panele, ramki, tekst) liczona z wybranego koloru; na jasnym tle tekst staje się ciemny;
+  wyniki Google dostają przyciemnioną wersję koloru; kolor paska tytułu podąża za motywem.
+- Poprawka modelu kolorów: suwaki są w pełni niezależne (kolor bazowy RGB + osobne korekty nasycenia i
+  jasności); żaden nie przesuwa pozostałych; migracja starego formatu.
+- Nowy wygląd suwaków: grubsze, pulsująca wypełniona część, gradient pokazujący wynikowy kolor,
+  suwaki efektów z miniaturą animacji efektu w środku.
+- Własny przełącznik (zamiast systemowego checkboxa) dla trybu zaawansowanego.
+- Własne okienko potwierdzeń w stronie (zamiast okna Windows) dla usuwania folderu i resetu.
+
+
+==========================================================================
+v8  - animacje, menu kontekstowe, skróty do przypisania, naprawa paska folderów
+==========================================================================
+- Sekcja RGB wysuwa się i wsuwa z animacją.
+- Duplikowanie folderu (kopia ze wszystkimi kartami, nazwa "... (kopia)").
+- Usuwanie folderu bez pytania, jeśli wszystkie jego karty to strona startowa.
+- Animacje otwierania i zamykania kart oraz folderów; animacja wysuwania/wsuwania panelu Claude'a.
+- Ikony zębatki i panelu Claude'a przeniesione na dół paska folderów, oddzielone gładką linią.
+- Menu prawego przycisku na karcie: nowa, duplikuj, odśwież, przypnij/odepnij, wycisz, zamknij,
+  przywróć zamkniętą; sekcja dla wszystkich kart: zamknij, odśwież, przypnij, wycisz wszystkie;
+  przy opcjach klawisze skrótów.
+- Karty przypięte na osobnym, niższym pasku pod paskiem kart; wyciszone karty oznaczone;
+  lista 15 ostatnio zamkniętych kart.
+- Menu prawego przycisku na folderze (zmień ikonę, zmień nazwę, duplikuj); po najechaniu zostaje tylko usuń.
+- Silnik skrótów przepisany: skróty przypisywane przez użytkownika, do 4 klawiszy naraz,
+  drugą zakładką ustawień "Skróty klawiszowe" (5 grup, ok. 24 akcji), nagrywanie kombinacji,
+  okno ostrzeżenia przy kolizji, zarezerwowane Ctrl+C/V/X/A/Z/Y oraz AltGr (Ctrl+Alt+A,C,E,L,N,O,S,X,Z),
+  wymagany Ctrl lub Alt albo F1-F12, przywracanie domyślnych.
+- Nowe domyślne skróty (m.in. Ctrl+Shift+D/P/M/T/W/R, Ctrl+Alt+P/M/D, Alt+strzałki, Alt+Home, F2,
+  Ctrl+Alt+strzałki góra/dół, Ctrl+Shift+K).
+- Naprawa: po dodaniu folderu pasek folderów zwijał się do 24 px - przyczyną była kolizja nazw
+  klas CSS (.pin: stan paska folderów i przypięte karty); przypięte karty mają teraz klasę .pt.
+  (Pierwsza próba naprawy przez blokadę przewijania nie pomogła; właściwa przyczyna znaleziona
+  po odtworzeniu błędu w headless Chromium.)
+
+
+==========================================================================
+v9  - napis Claude jako strona startowa, Google bez AI, własne ikony i przyciski okna
+==========================================================================
+- Naprawa: efekty i kolor strony startowej znikały podczas animacji panelu Claude'a
+  (płótno jest teraz odrysowywane od razu po zmianie rozmiaru).
+- Napis "Claude" przejął funkcję domku (usunięty ⌂); animacja po najechaniu (obrót gwiazdki,
+  poświata, wysuwana linia).
+- Przełączanie folderów: karty starego folderu zsuwają się w dół do linii, nowe wysuwają się od dołu.
+- Google zawsze w trybie "Web" (udm=14): bez przeglądu AI i odpowiedzi Gemini; przekierowanie
+  wyników z udm=50/bez udm; ukrywanie przycisku "Tryb AI".
+- Skrypt ujednolicający kolory szarych powierzchni u góry Google (także po prawej stronie).
+- Zębatka obraca się po najechaniu; ikona panelu Claude'a pulsuje i się obraca.
+- Własne przyciski okna (okno bez ramki: frame:false, IPC win-ctl/win-state): minimalizuj,
+  maksymalizuj/przywróć, zamknij - ikony SVG w motywie z animacjami (kreska opada, kwadrat rośnie,
+  krzyżyk się obraca, zamknij podświetla się na czerwono).
+- Własne przyciski wstecz, dalej, odśwież (SVG): strzałki "wylatują" w swoją stronę, odśwież kręci się
+  od szybkiego do wolnego.
+
+
+==========================================================================
+v10  - tryb "Rozbudowany", zakładka Interfejs, języki
+==========================================================================
+- Zębatka i obie gwiazdki Claude'a przerysowane jako SVG dokładnie wyśrodkowane i obracane wokół
+  własnego środka.
+- Naprawa rogów paska wyszukiwania w Google (wewnętrzne elementy przejmują zaokrąglenie,
+  pola przezroczyste).
+- Tryb "Rozbudowany" dla przycisków górnych: przyciski okna (iskry, rysujący się okrąg, narożniki),
+  przyciski nawigacji (pierścień, ślad za strzałką, kometa przy odświeżaniu), połysk napisu Claude.
+- Nowa zakładka ustawień "Interfejs": styl przycisków okna (Windows / Prosty / Rozbudowany),
+  styl przycisków nawigacji (Prosty / Rozbudowany), osobne wyłączniki animacji
+  (przyciski, foldery, karty, panel Claude'a), wybór języka.
+- Styl "Windows": płaskie przyciski z glifami Segoe Fluent Icons, czerwone zamknięcie.
+- Języki interfejsu: polski, angielski, niemiecki, hiszpański, francuski (automatyczne tłumaczenie
+  tekstów i podpowiedzi, tytuły okien dialogowych); zmiana języka odświeża interfejs.
+- Numer wersji widoczny na dole zakładki Interfejs; od tej wersji paczki mają numer w nazwie.
+
+
+==========================================================================
+v11  - poprawki przycisków okna i animacji folderów
+==========================================================================
+- Podświetlenie przycisków okna w trybie Rozbudowanym było przesunięte w prawo (ikona leżała
+  7 px od środka); przyciski centrują teraz zawartość.
+- Animacja przełączania folderów działała tylko raz: stare klasy animacji są czyszczone przed zsuwaniem.
+- Kliknięcia folderów w trakcie animacji nie są ignorowane - zapamiętywany jest ostatni wybór.
+- Zabezpieczenie zmiany nazwy folderu przed błędem przy utracie fokusu.
+
+
+==========================================================================
+v12  - pasek Aplikacje i pływające okna
+==========================================================================
+- Prawy pasek "Aplikacje": zwinięty do ikon, rozsuwa się po najechaniu (w lewo), pusty pokazuje komunikat
+  i przycisk "Otwórz ustawienia".
+- Pływające okna aplikacji: przesuwanie za nagłówek, zmiana rozmiaru za 8 krawędzi/rogów (min. 220x140),
+  zamykanie, wysuwanie na wierzch po kliknięciu, podświetlenie aktywnego, animacja otwarcia/zamknięcia.
+- Pozycje, rozmiary i otwarte okna zapamiętywane po restarcie.
+- Nowa zakładka ustawień "Aplikacje": przełącznik paska (domyślnie włączony, listy zwijają się),
+  listy "Dodane do paska" i "Dostępne aplikacje" z nakładką dodaj/usuń po najechaniu.
+- 11 aplikacji: "Okno testowe" (puste okno) i 10 zapowiedzi (Kalkulator, Kalendarz, Notatnik, Zegar,
+  Stoper, Lista zadań, Konwerter, Pogoda, Tłumacz, Odtwarzacz - komunikat "wkrótce").
+- Wyłącznik animacji "Aplikacje"; scalanie ustawień obsługuje tablice; tłumaczenia nowych tekstów.
+
+
+==========================================================================
+v13  - Kalkulator, Notatnik, zachowanie okien (kolizje, scalanie)
+==========================================================================
+- Zakładki ustawień mają identyczną szerokość (siatka), a pasek przewijania nie powoduje już skoków szerokości.
+- Kalkulator: tryb prosty i naukowy (okno samo się powiększa), własny parser wyrażeń (bez eval),
+  sin/cos/tan i odwrotne (2nd), ln, log, pierwiastek, x^2, x^y, 1/x, |x|, e^x, 10^x, n!, pi, e, nawiasy,
+  DEG/RAD, Ans, procent, historia 60 obliczeń (klik wstawia wynik, czyszczenie), obsługa klawiatury,
+  komunikat "Błąd".
+- Notatnik: wiele notatek, lista z wyszukiwarką, tytuł z pierwszej linii, data, licznik znaków,
+  panel emoji, autozapis, potwierdzenie usuwania, w wąskim oknie lista chowa się pod przyciskiem.
+- Aplikacje używają kolorów motywu.
+- Okna domyślnie nachodzą na siebie (najnowsze na wierzchu).
+- Shift podczas przesuwania: okna blokują się o siebie z każdej strony.
+- Na styku okien podświetlony odcinek tylko na wspólnej długości (biały, a na jasnym motywie czarny).
+- M podczas trzymania okna: scala stykające się okna (przesuwane razem); U: oddziela; Esc: anuluje.
+- Pasek podpowiedzi klawiszy na dole ekranu z poświatą, widoczny podczas trzymania okna.
+- Scalenia zapamiętywane po restarcie.
+- Poprawki: brak białej ramki fokusu na oknach, komunikat nie nachodzi na pasek podpowiedzi.
+
+
+==========================================================================
+v14  - linia styku i własne paski przewijania
+==========================================================================
+- Biała linia styku pojawia się tylko w trybie kolizji (Shift); okna scalone mają stałą linię w kolorze akcentu.
+- Linia skrócona o promień zaokrągleń rogów okien (14 px z każdej strony) - nie wystaje poza zakręty;
+  przy zbyt krótkim styku nie ma jej wcale.
+- Własne paski przewijania w całej aplikacji (smukłe, zaokrąglone, akcent po najechaniu) oraz
+  wstrzykiwane do stron w kartach i panelu Claude'a; odświeżane po zmianie motywu.
+- Usunięty scrollbar-color z CSS wstrzykiwanego w Google (kolidował ze stylem pasków).
+
+
+==========================================================================
+v15  - przeciąganie kart i folderów, nowe okna, ikona na pasku zadań
+==========================================================================
+- Przeciąganie kart: karta unosi się jako prostokąt, w pasku zablokowana w pionie i uniesiona,
+  płynna zmiana kolejności (animacja FLIP); dotyczy też kart przypiętych.
+- Po wyciągnięciu ponad ok. 44 px poza pasek karta odczepia się i podąża za kursorem; powrót w obręb
+  paska powoduje przyciągnięcie (snap); puszczenie poza paskiem otwiera kartę w nowym oknie
+  (w jednym folderze o nazwie i ikonie folderu źródłowego) i usuwa ją z okna źródłowego.
+- To samo dla folderów (oś pionowa, oderwanie w bok, nowe okno z całym folderem; ostatniego folderu
+  nie da się oderwać).
+- Esc w trakcie przeciągania cofa kolejność; kliknięcie po przeciągnięciu nie aktywuje karty.
+- main.js przebudowany pod wiele okien (createWindow, stan okna oderwanego przez get-init, IPC per okno);
+  okna oderwane są jednorazowe (nie zapisują stanu, aplikacje w nich wyłączone).
+- Ikona przeglądarki (icon.ico, icon.png): ciemny zaokrąglony kwadrat z iskrą; ikona na pasku zadań
+  rysowana na bieżąco w kolorach motywu; własny identyfikator aplikacji (grupa na pasku zadań).
+- Scalone okna aplikacji wychodzą na wierzch razem po kliknięciu lub przytrzymaniu.
+- Podpowiedzi klawiszy: zawsze Shift i Esc; M tylko gdy Shift i okna się stykają; U tylko gdy trzymane
+  okno jest scalone (z animacją pojawiania).
+- Linia scalenia leży na warstwie scalonych okien (okno z wierzchu ją przykrywa), odświeżana po
+  zmianie kolejności warstw.
+
+
+==========================================================================
+v16  - karty między oknami, ściany ekranu, pasek aplikacji nad oknami
+==========================================================================
+- Karta przeciągnięta nad pasek tytułu/kart innego okna przeglądarki "przeskakuje" do niego:
+  w oknie docelowym pojawia się podświetlony zastępnik podążający za kursorem (z animacją przesuwania
+  pozostałych kart), a duch w oknie źródłowym znika.
+- Upuszczenie wstawia kartę w wybrane miejsce, aktywuje ją i wysuwa okno docelowe na wierzch;
+  w źródle karta jest usuwana, a jeśli była jedyną kartą w jedynym folderze - okno się zamyka.
+- Wybór okna pod kursorem wg kolejności ostatniej aktywności (IPC: xd-move, xd-drop, xd-end).
+- Shift podczas przesuwania okien aplikacji blokuje je także o krawędzie ekranu (nie da się ich
+  częściowo schować); działa dla każdego okna ze scalonej grupy; bez Shifta wolno wysuwać poza ekran.
+- Podpowiedź przy Shift: "Blokuj o okna i krawędzie ekranu" (tłumaczenia w 4 językach).
+- Rozsuwany prawy pasek aplikacji ma wyższą warstwę niż okna aplikacji - zawsze wyświetla się nad nimi.
+
+
+==========================================================================
+v17  - Zegar, Konwerter jednostek i poprawki procesu głównego
+==========================================================================
+- Nowa aplikacja Zegar (zastąpiła zapowiedzi Zegar, Stoper i Kalendarz) z pięcioma zakładkami:
+  Zegar, Alarmy, Minutnik, Stoper i Kalendarz; kolory i animacje zgodne z motywem.
+- Zegar: tarcza analogowa z cyframi, tarcza bez numerów oraz cyfrowy wyświetlacz 7-segmentowy (z
+  przełącznikiem formatu 24 h); data w języku interfejsu.
+- Alarmy: godzina, data lub dni tygodnia, notatka i pięć dźwięków generowanych w WebAudio (z
+  odsłuchem); termin z przeszłości jest odrzucany, a alarm ominięty o ponad 2 minuty oznaczany jako
+  "ominięty".
+- Silnik alarmów działa globalnie, także przy zamkniętej aplikacji: dzwoniący alarm otwiera okno
+  Zegara lub wynosi je na wierzch, przywraca zminimalizowane okno przeglądarki i uruchamia mruganie
+  na pasku zadań (IPC attention); dostępne akcje "Wyłącz" i "Drzemka 5 min".
+- Minutnik z pierścieniem postępu i presetami oraz Stoper z okrążeniami (najlepsze i najgorsze
+  wyróżnione); czas liczony ze znaczników czasu, więc odmierzanie nie zatrzymuje się po zamknięciu
+  aplikacji.
+- Kalendarz z wydarzeniami (opcjonalna godzina, wskaźniki na dniach); przycisk 🔔 zamienia wydarzenie
+  w alarm.
+- Nowa aplikacja Konwerter jednostek (zastąpiła zapowiedź): 10 kategorii (długość, waga i masa,
+  objętość, czas, powierzchnia, temperatura, prędkość, dane, energia, ciśnienie) i 227 jednostek, w
+  tym rzadkie: lata świetlne, parseki, jednostki astronomiczne, sążnie, shake, helek, długość
+  Plancka, masy planet i gwiazd, skale Réaumura, Delisle'a, Newtona i Rømera, megatona TNT oraz foe.
+- Konwerter: nazwy jednostek w 5 językach, lista wszystkich jednostek z wyszukiwarką, kopiowanie
+  wyniku, liczby w formacie lokalnym.
+- main.js: stan naciśniętych klawiszy i pauza nagrywania skrótu są osobne dla każdego okna (koniec
+  wzajemnych zakłóceń przy wielu oknach); scalony zdublowany handler zamknięcia okna.
+- Strefa upuszczania karty między oknami przyjmuje rzeczywistą wysokość pasków z renderera (stała
+  112 px pozostaje wartością zapasową).
+- Naprawa: wczytywanie konfiguracji z pliku zawsze kończyło się błędem (zmienna t zasłaniała funkcję
+  tłumaczeń).
+- 59 nowych tekstów w 5 językach; README uzupełnione o czwartą zakładkę ustawień.
+
+
+==========================================================================
+v18  - waluty, wysuwanie okien przy przenoszeniu kart, uporządkowanie warstw
+==========================================================================
+- Przenoszenie kart między oknami: okno przeglądarki pod kursorem wysuwa się na wierzch systemu, a
+  po powrocie kursora nad okno źródłowe ono wraca na wierzch; Esc i puszczenie poza oknami
+  przywracają poprzednią kolejność.
+- Okna aplikacji leżą zawsze pod paskami bocznymi (folderów i aplikacji), także gdy paski są
+  rozsunięte.
+- Przesuwanie scalonych okien: wszystkie okna grupy mają obramówkę w kolorze motywu; po puszczeniu
+  zostaje podświetlone tylko chwycone okno.
+- Konwerter: usunięte rozwijane listy jednostek; kliknięcie pola "z" lub "na" podświetla je kolorem
+  motywu, a dolna lista wybiera jednostkę dla aktywnego pola (nagłówek "Przeliczasz z/na").
+- Konwerter: nowa kategoria Waluty (ok. 150 walut z ExchangeRate-API, nazwy w języku interfejsu);
+  kursy odświeżane co 6 godzin i zapamiętywane na wypadek braku sieci.
+- Waluty: złoty przed denominacją (PLZ, 10 000 PLZ = 1 PLN) oraz waluty o kursie ustalonym prawnie,
+  m.in. marka niemiecka, frank francuski, lira włoska, korona słowacka, rubel i lira turecka sprzed
+  denominacji.
+- Panel kursu w stylu Google (kurs jednej jednostki, data aktualizacji, podpis źródła) z wykresem
+  1M/3M/1R/5L i odczytem wartości po najechaniu; dane Frankfurter/EBC, dla walut spoza EBC wykres
+  jest niedostępny.
+- main.js: IPC http-get (tylko GET po https, biała lista hostów, bez problemów z CORS).
+- Zegar: płynne przejścia zakładek (przesuwający się wskaźnik i wsuwana zawartość), większe i
+  wyróżnione cyfry w alarmach, minutniku i stoperze oraz stonowane tło z cząsteczkami zgodne z
+  ustawieniem pyłu w motywie.
+- Kalendarz: lista wyboru miesiąca i roku (lata 1900-2200) otwierana kliknięciem nagłówka miesiąca.
+- Dokładność wyników w konwerterze zwiększona do 12 cyfr znaczących (6 dla kursów walut).
+
+
+==========================================================================
+v19  - hebrajski, chiński tradycyjny i śląski, nowy wybór języka
+==========================================================================
+- Nowe języki interfejsu: hebrajski, chiński tradycyjny i śląski (łącznie 8); przetłumaczone
+  wszystkie 256 tekstów, w tym aplikacje Zegar i Konwerter.
+- Hebrajski: tekst w elementach interfejsu układa się od prawej do lewej (układ okna pozostaje bez
+  odbicia lustrzanego).
+- Daty, liczby i nazwy języków formatowane według mapowania języka interfejsu; nazwy popularnych
+  jednostek w hebrajskim i chińskim pochodzą z wbudowanego słownika Intl.
+- Wybór języka w ustawieniach: niestandardowy przycisk z aktualnym językiem (gradient w kolorze
+  motywu, animowana flaga, nazwa w języku interfejsu i we własnym) oraz rozwijana lista z paskiem
+  przewijania i zaznaczeniem aktualnego wyboru.
+- Uwaga: śląskie tłumaczenia przygotował Claude i wymagają weryfikacji przez rodzimego użytkownika.
+
+
+==========================================================================
+v20  - panel kategorii konwertera, tło aplikacji, notatnik, okrągłe okna, tłumacz
+==========================================================================
+- Konwerter: kategorie w panelu wysuwanym z lewej strony spod przycisku ☰ (ikony, wyraźne podziały,
+  kolejność tematyczna); na górze nazwa aktywnej kategorii, a okno przeliczeń przesunięte wyżej.
+- Wszystkie aplikacje mają tło z cząsteczkami; Ustawienia > Interfejs > "Tło aplikacji": przełącznik
+  główny i osobny suwak siły (0-100%) dla każdej aplikacji.
+- Notatnik: edytowalny tytuł (bez własnego tytułu widoczny tytuł z pierwszej linii), duplikowanie
+  notatek przyciskiem ⧉, wyszukiwanie obejmuje także tytuły.
+- Usunięte "Okno testowe"; zapisane odwołania do nieistniejących aplikacji są czyszczone przy
+  starcie.
+- Nowa opcja "Okrągłe okna aplikacji" (Interfejs > Wygląd aplikacji): okna w kształcie koła, pasek
+  tytułu na górnym łuku, zawartość we wpisanym prostokącie.
+- Nowa aplikacja Tłumacz oparta na DeepL z własnym kluczem API (zastąpiona w 0.21); IPC http-post z
+  listą dozwolonych hostów.
+- 22 nowe teksty w 8 językach.
+
+
+==========================================================================
+v21  - Tłumacz bez klucza, konta i opłat
+==========================================================================
+- Tłumacz działa bez klucza API, logowania i opłat: tłumaczenie przez publiczny punkt tłumacza
+  Google, z automatycznym przejściem na MyMemory przy awarii.
+- Około 109 języków z nazwami w języku interfejsu, automatyczne wykrywanie języka źródłowego,
+  zamiana języków, licznik znaków i kopiowanie wyniku; tłumaczenie startuje 0,65 s po przerwie w
+  pisaniu (Ctrl+Enter od razu), długie teksty są dzielone na części.
+- Brak internetu: pasek z komunikatem i wstrzymanie zapytań; osobny komunikat przy awarii usług
+  tłumaczeniowych.
+- Domyślny język docelowy zgodny z językiem interfejsu.
+- main.js: usunięte IPC http-post i hosty DeepL; biała lista hostów obejmuje usługi tłumaczeniowe.
+- Uwaga: punkt Google jest nieoficjalny, więc może zostać ograniczony lub zmieniony; MyMemory ma
+  limity zapytań.
+
+
+==========================================================================
+v22  - Zmieniacz formatów, integracja z ffmpeg, przebudowa wyboru języka
+==========================================================================
+- Nowa aplikacja Zmieniacz formatów (konwersja plików; nazwa odróżnia ją od konwertera jednostek) w
+  układzie konwertera jednostek: panel kategorii, pole wyboru lub upuszczenia pliku, przyciski
+  formatów docelowych, opcje formatu, pasek postępu, podgląd i osobne pole "Gotowy plik" z zapisem
+  przez okno "Zapisz jako".
+- Formaty wbudowane, bez zewnętrznych bibliotek: Obrazy (PNG, JPG, WEBP, GIF, BMP, ICO, TIFF, PDF,
+  SVG, PPM), Audio (WAV 16/24/32f, AIFF, FLAC, WEBM), Wideo (WEBM, GIF, klatka PNG/JPG, dźwięk do
+  WAV/FLAC/WEBM), Dokumenty (TXT, MD, HTML, DOCX, ODT, RTF, PDF), Dane (JSON, CSV, TSV, NDJSON, XML,
+  YAML, HTML, MD, SQL, XLSX), Archiwa (ZIP, TAR, TAR.GZ, GZ, także z wielu plików) i Kodowanie
+  (Base64, Hex, Data URI, UTF-8/16, Windows-1250/1251/1252, ISO-8859-2/15, KOI8-R, ASCII, końce
+  wierszy).
+- Opcjonalna integracja z ffmpeg (nowy moduł ffmpeg.js; wykrywany w PATH, obok programu lub przez
+  zmienną FFMPEG_PATH): odblokowuje m.in. MP3, M4A, AAC, OGG, OPUS, WMA, AC3, MP4, MKV, AVI, MOV,
+  FLV, WMV, AVIF, TGA i JP2 oraz pliki wejściowe nieczytelne dla przeglądarki; formaty niedostępne
+  bez ffmpeg oznaczone są kłódką.
+- Automatyczny wybór kategorii według rozszerzenia, przeciąganie plików na okno aplikacji oraz opcje
+  konwersji (jakość, maksymalny rozmiar, tło, częstotliwość, kanały, klatki/s, separator, wykrywanie
+  typów, końce wierszy).
+- main.js: IPC ff-probe, ff-run (z postępem), save-out i html-to-pdf (PDF z dokumentów przez ukryte
+  okno Electrona); preload.js: dostęp do ścieżki upuszczonego pliku.
+- Poprawność wyników potwierdzona narzędziami zewnętrznymi (ffmpeg, ImageMagick, python-docx,
+  openpyxl, LibreOffice, tar, unzip); WAV, AIFF i FLAC są zgodne z oryginałem co do próbki.
+- Wybór języka: uszkodzony graficznie przycisk zbudowany od nowa; flagi w prawidłowych proporcjach,
+  wyższe niż okno (bez prześwitów tła w dołach fali), zaczynające się w połowie pola i zanikające w
+  gradient po lewej stronie.
+- Animacja flag jako tkanina 3D: fale w pionie i poziomie, wgłębienia do tyłu, perspektywa i
+  cieniowanie z nachylenia.
+- Flagi Śląska (z herbem) i Chin pochodzą z dostarczonych obrazów, pozostałe są rysowane w
+  oryginalnych proporcjach.
+- Przykładowe zdanie w danym języku przeniesione na listę (po lewej stronie pozycji); aktualny język
+  jest przyciemniony, z obramówką i znaczkiem ✓.
+- Zmieniacz formatów dodany do ustawień tła aplikacji; 40 nowych tekstów w 8 językach.
+- Uwaga: bez ffmpeg niedostępny jest m.in. MP3, a konwersja wideo w przeglądarce trwa tyle, ile samo
+  wideo.
+
+
+==========================================================================
+v23  - okrągłe okna jako stałe koła, zawinięty pasek tytułu, styk po łuku
+==========================================================================
+- Okrągłe okna aplikacji są zablokowane w kształcie koła: zmiana rozmiaru za dowolną krawędź zmienia
+  oba wymiary jednocześnie (druga oś rośnie wokół środka), uchwyty narożne są wyłączone, a zapisane
+  wcześniej prostokątne rozmiary są sprowadzane do kwadratu; minimalny rozmiar wynosi teraz 330 px
+  (wcześniej 300 px).
+- Pasek tytułu w trybie okrągłym zawija się wzdłuż górnego łuku okna: jest wycinkiem pierścienia o
+  ukośnych końcach, z tytułem biegnącym po łuku (skracanym do jego długości), ikoną i przyciskiem
+  zamknięcia na końcach; do przeciągania służy wyłącznie obszar paska.
+- Prostokąt zawartości okna jest liczony tak, by górne rogi leżały pod wewnętrznym łukiem paska, a
+  dolne wewnątrz koła.
+- Linia scalenia okrągłych okien jest rysowana tylko na odcinku, na którym okręgi faktycznie się
+  stykają (odstęp do 5 px), a nie na całej długości boku; okna bez wizualnego styku nie scalają się.
+- main.js: ff-run nie zgłasza błędu przy braku argumentu; skróty (set-keys) są przyjmowane tylko z
+  okna głównego, dzięki czemu okno oderwane nie nadpisuje ich starą kopią.
+
+
+==========================================================================
+v24  - historia przeglądania
+==========================================================================
+- Nowy przycisk Historia na dole prawego paska, oddzielony linią tak samo jak zębatka i panel
+  Claude'a od folderów; działa także przy wyłączonych aplikacjach. Skrót Ctrl+H jest przypisywalny w
+  zakładce Skróty.
+- Panel historii w motywie przeglądarki: wyszukiwarka, wpisy pogrupowane na Dzisiaj, Wczoraj i daty,
+  a w wierszu godzina, ikona, tytuł i domena. Po najechaniu z prawej strony wysuwa się przycisk ×
+  usuwający wpis (z animacją).
+- Kliknięcie wpisu otwiera stronę w bieżącej karcie, a Ctrl lub środkowy przycisk myszy w nowej;
+  przycisk "Pokaż więcej" doczytuje kolejne 200 wpisów, kosz czyści całą historię po potwierdzeniu.
+- Zapisywane są strony i wyszukiwania Google otwierane w kartach; odświeżenia, przekierowania i
+  zdarzenia tej samej strony w ciągu 30 s są scalane, a strona startowa i adresy inne niż http(s)
+  pomijane. Okna oderwane i panel Claude'a nie zapisują historii.
+- Historia jest przechowywana w IndexedDB poza stanem sesji, dzięki czemu zapis stanu po każdej
+  nawigacji nie rośnie wraz z jej rozmiarem.
+- Ustawienia > Interfejs > Historia: włącznik zapisu, suwak okresu przechowywania (od 1 do 730 dni;
+  maksimum oznacza brak limitu; domyślnie 90 dni) oraz automatyczne usuwanie starszych wpisów przy
+  starcie i przy dodawaniu nowych.
+- Lista stron pomijanych: wpis z kropką, ukośnikiem lub prefiksem (np. www.google.com) dopasowuje
+  cały adres, a samo słowo (np. zwierzaki) dopasowuje nazwę hosta przed końcówką (.com, .pl,
+  .co.uk); dodanie wpisu usuwa też pasujące wpisy już zapisane.
+- 18 nowych tekstów w 8 językach.
+
+
+==========================================================================
+v25  - wyszukiwania Google na liście pomijanych, animacja uruchamiania
+==========================================================================
+- Lista stron pomijanych obejmuje hasła wyszukiwane w Google: wpis "domek" pomija także wyszukania
+  "domek na wczasy" i "mały wakacyjny domek", zarówno przy zapisie, jak i wśród istniejących wpisów.
+  Opis w ustawieniach został rozszerzony.
+- Nowa animacja uruchamiania na pełnym oknie: tło z gradientem w kolorze ostatnio wybranego motywu i
+  unoszącym się pyłem, z którego od dołu wylatuje ikona aplikacji (ta sama co na pasku zadań),
+  obracając się i rosnąc.
+- Na środku ikona wykonuje szybszy obrót i opada na tło, rozsyłając trzy fale: w ich obrębie kolor
+  motywu jest wyraźnie mocniejszy, mają jasny grzbiet i cień, a pył jest przez nie unoszony i
+  przesuwany.
+- Gdy fale są już daleko, ikona przesuwa się w lewo, a spod niej wysuwa się nazwa przeglądarki;
+  całość jest wycentrowana, po czym nakładka znika i odsłania przeglądarkę (łącznie ok. 3,4 s plus
+  0,4 s wygaszania).
+- Rozmiar animacji jest liczony względem monitora (z dopasowaniem do małych okien), a kolor tła
+  nakładki jest zapamiętywany i ustawiany od pierwszej klatki.
+- Zadania ładowane w tle (historia, aktywna karta, panel Claude'a) zatrzymują ekran końcowy z
+  delikatnie pulsującą etykietą bieżącego zadania; limit oczekiwania wynosi 7 s na zadanie.
+- Animację pomija kliknięcie lub dowolny klawisz; uruchamia się tylko przy starcie aplikacji (nie po
+  zmianie języka ani w oknach oderwanych). Przełącznik "Uruchamianie przeglądarki" w Ustawienia >
+  Interfejs > Animacje.
+- 4 nowe teksty w 8 językach.
+
+
+==========================================================================
+v26  - Gejos.exe - kostki z fizyką
+==========================================================================
+- Nowa aplikacja Gejos.exe: arena z widocznym skrawkiem podłogi, na którą w spokojnym tempie (co ok.
+  1,7-3,2 s) spadają z góry kostki o zaokrąglonych rogach, z łagodną poświatą w kolorze motywu i
+  ciemniejszym środkiem.
+- Własny silnik fizyki brył sztywnych: kolizje kostek ze sobą i ze ścianami, obroty, tarcie, odbicia
+  i stabilne stosy. Boki i sufit blokują kostkę dopiero po pełnym wpadnięciu na arenę, podłoga
+  zawsze.
+- Sterowanie myszą: trzymanie lewym przyciskiem prowadzi kostkę za kursorem i pozwala ją rzucić z
+  pędem, szybkie kliknięcie niszczy ją w pył. Kostka, która po wpadnięciu wypadnie poza arenę, jest
+  usuwana bez punktu.
+- Rozmiar kostek jest stały względem okna przeglądarki, a zmiana rozmiaru okna aplikacji zmienia
+  tylko arenę; liczba kostek jest ograniczona tak, by ich łączna powierzchnia nie przekraczała 1,5
+  wysokości kostki razy długość podłogi.
+- Wynik wyświetlany w tle własną, szeroką czcionką cyfr (cyfry maleją wraz z ich liczbą),
+  zapamiętywany po zamknięciu aplikacji, wraz z rekordem.
+- Panel ustawień wysuwany przyciskiem trzech linii w prawym górnym rogu: wynik i rekord, "Zniszcz
+  wszystkie" (bez punktów), "Zeruj wynik" (z potwierdzeniem, rekord pozostaje) oraz do 10 własnych
+  grafik kostek w dowolnym formacie czytelnym dla przeglądarki lub ffmpeg, losowanych z pominięciem
+  ostatnio użytej.
+- Gejos.exe dodany do ustawień tła aplikacji; 14 nowych tekstów w 8 językach.
+
+
+==========================================================================
+v27  - płynniejszy start, dźwięk animacji, tryby zdjęć w Gejos.exe
+==========================================================================
+- Animacja uruchamiania: usunięte zacinanie pierwszych klatek. Zegar animacji ignoruje przestoje,
+  gradienty tła i pył są liczone raz lub z gotowych sprite'ów, cień ikony rysuje canvas, a układ
+  jest przeliczany przy zmianie rozmiaru okna w trakcie startu.
+- Logo rusza dopiero po zdekodowaniu ikony i serii płynnych klatek, krótko po pojawieniu się samego
+  tła z efektami.
+- Przed lądowaniem logo zatacza łagodny półkolisty łuk wokół środka ekranu o malejącym promieniu.
+- Dźwięk uruchamiania syntezowany w WebAudio i dopasowany do toru logo: woosh zależny od prędkości,
+  rozmiaru i położenia, świst obrotu rosnący z jego prędkością, thud uderzenia, krystaliczny ambient
+  z pogłosem wygasający wraz z końcem animacji oraz dźwięk wysuwania nazwy. Osobny przełącznik
+  "Dźwięk uruchamiania".
+- Gejos.exe: zdjęcie pokrywa całą powierzchnię kostki, a poświata delikatnie rozświetla jego
+  krawędzie.
+- Gejos.exe: tryby dopasowania zdjęć Przytnij, Rozciągnij i Kafelek (od 2x2 do 6x6) oraz suwak
+  rozmiaru kostek 44-72 px; zmiany działają od razu także na kostkach będących już na arenie.
+  Grafiki są zapisywane z zachowaniem proporcji.
+- 7 nowych tekstów w 8 językach.
+
+
+==========================================================================
+v28  - niezależne profile wielu instancji, ciągły tor logo
+==========================================================================
+- Naprawa: uruchomienie drugiej instancji przeglądarki zawieszało ją na kilkanaście sekund na pustej
+  nakładce, ponieważ procesy dzieliły folder danych i blokowały sobie magazyn Chromium. Każda
+  instancja dostaje teraz własny profil (nowy moduł instance.js, zamki .lock z numerem procesu);
+  kolejne instancje startują z kopią stanu pierwszej.
+- Uwaga: druga instancja ma osobne logowanie w panelu claude.ai i osobną historię, a jej zmiany (np.
+  notatki) nie wracają do pierwszej.
+- Animacja uruchamiania: tor logo jest jedną ciągłą krzywą, bez zatrzymania i załamania kierunku na
+  styku lotu i półkola; zmienia się wyłącznie prędkość. Obrót ma ciągłą prędkość kątową i kończy się
+  dokładnie w chwili uderzenia.
+- Długość animacji i czasy zdarzeń pozostają bez zmian, a dźwięk jest dopasowany do nowego toru.
+
+
+==========================================================================
+v29  - optymalizacja zużycia zasobów
+==========================================================================
+- Efekty tła strony startowej są rysowane z częstotliwością ok. 30 klatek na sekundę zamiast z
+  częstotliwością monitora, a przy wyłączonych efektach nie są rysowane wcale.
+- Pył i cząstki w aplikacjach korzystają z gotowych sprite'ów zamiast gradientu tworzonego dla
+  każdej cząstki i klatki; deszcz światła jest rysowany jedną ścieżką, a zorza liczona w 1/4
+  rozdzielczości (zmiana wycofana w 0.30).
+- Tło z cząsteczkami w aplikacjach odświeża się 20 razy na sekundę, nie jest rysowane przy ukrytym
+  oknie, a przy wyłączonej animacji aplikacji canvas jest przerysowywany tylko po zmianie rozmiaru,
+  siły lub koloru.
+- Gejos.exe: renderowanie ograniczone do ok. 70 klatek na sekundę; wynik w tle i podłoga z poświatą
+  są rysowane do bufora i odświeżane tylko po zmianie.
+- Podgląd animacji suwaków w ustawieniach działa z częstotliwością 30 klatek na sekundę, a minutnik
+  zapisuje tekst tylko po jego zmianie, co ogranicza pracę mechanizmu tłumaczeń.
+- main.js: wyłączone nieużywane usługi Chromium (MediaRouter, Translate, OptimizationHints) oraz
+  praca sieciowa w tle.
+- Pomiar w headless Chromium z renderowaniem programowym: komplet efektów tła kosztuje 4,9 ms na
+  klatkę zamiast 8,1 ms, a liczba klatek spada 2-5 razy zależnie od monitora. Wynik na GPU nie był
+  mierzony.
+
+
+==========================================================================
+v30  - poprawki zorzy, panel RGB akcentu, suwaki co 5, aplikacja Kości
+==========================================================================
+- Naprawa: zorza jest znów rysowana w pełnej rozdzielczości; zmiana z 0.29 powiększała dithering
+  gradientu do bloków 4x4 px i dawała efekt kratkowania.
+- Naprawa: poświata zorzy nie jest już ucinana przy prawej krawędzi, tylko zanika łagodnie przy obu
+  bocznych krawędziach obszaru.
+- Ustawienia > Motyw: kolor akcentu ma panel zaawansowany jak kolor tła (suwaki R, G, B i pole HEX),
+  zsynchronizowany z paletą próbek i zmieniający motyw na żywo.
+- Ustawienia > Interfejs > Suwaki: opcja "Suwaki przesuwają się co 5" obejmuje efekty tła, tło
+  aplikacji, obraz tła i kolory RGB; suwak okresu historii pozostaje bez zmian, ponieważ jego
+  wartości są indeksami.
+- Nowa aplikacja Kości: kości D3, D4, D5, D6, D8, D10, D12, D16, D20, D24, D30 i D100 w dowolnej
+  mieszance do 30 naraz, modyfikator, suma, zakres możliwych wyników, formuła rzutu i historia 15
+  rzutów.
+- Kliknięcie kości w wyniku rzuca nią ponownie; wartości maksymalne są wyróżniane, a jedynka na D20
+  przygaszana. Losowanie używa crypto bez przesunięcia modulo.
+- Kości są rysowane w SVG w kolorach motywu (D6 z oczkami, pozostałe z cyframi, sylwetki zbliżone do
+  prawdziwych kości); rzut ma animację z mieszaniem wartości, wyłączaną razem z animacjami
+  aplikacji.
+- Kości dodane do ustawień tła aplikacji; 18 nowych tekstów w 8 językach.
+
+
+==========================================================================
+v31.0, v31.1, v31.2  - test GitHub
+==========================================================================
+- Różnego rodzaju testy kompatybilności repozytorium GitHub
+
+
+**************************************************************************
+v31.3  - instalator i automatyczne aktualizacje
+**************************************************************************
+- Instalator Windows (NSIS, electron-builder): instalacja dla użytkownika bez uprawnień
+  administratora, wybór folderu instalacji, skróty na pulpicie i w menu Start oraz stała nazwa pliku
+  instalatora, dzięki której odnośnik do najnowszej wersji nie zmienia się.
+- Automatyczne aktualizacje z GitHub Releases (nowy moduł updater.js, pakiet electron-updater):
+  pierwsze sprawdzenie 8 s po starcie i kolejne co 4 godziny, pobieranie z weryfikacją sumy SHA-512
+  (plik latest.yml) oraz instalacja przy zamknięciu przeglądarki lub od razu na życzenie.
+- Moduł aktualizacji jest ładowany leniwie, więc przeglądarka działa także bez zainstalowanego
+  pakietu. Wersja uruchamiana bez instalatora (npm start, plik .bat) tylko sprawdza API GitHuba i
+  oferuje odnośnik do strony wydania.
+- Aktualizacjami zajmuje się wyłącznie pierwsza instancja, a ustawienia aktualizacji są przyjmowane
+  tylko z okna głównego.
+- Ustawienia > Interfejs > Aktualizacje: wersja, status, pasek postępu, przyciski Sprawdź, Pobierz i
+  Zainstaluj i uruchom ponownie, przełączniki automatycznego sprawdzania i pobierania oraz okno
+  "Aktualizacja gotowa" z pytaniem o restart.
+- GitHub Actions (.github/workflows/release.yml): po utworzeniu tagu v* budowany jest instalator i
+  publikowane wydanie; zadanie zatrzymuje się, gdy tag nie zgadza się z wersją w package.json albo
+  repozytorium nie zostało skonfigurowane.
+- Folder danych użytkownika jest stały niezależnie od sposobu uruchomienia, więc przejście na
+  instalator nie powoduje utraty ustawień, historii i notatek; ffmpeg.js szuka programu także w
+  folderze instalacji i w resources (kod aplikacji leży w pliku app.asar).
+- Naprawa: komunikat błędu z aktualizatora nie jest nadpisywany przez odrzucenie obietnicy po tym
+  samym błędzie.
+- main.js i preload.js: nowe IPC upd-info, upd-check, upd-download, upd-install, upd-open i upd-set
+  oraz zdarzenie upd-event; 23 nowe teksty w 8 językach; dodana instrukcja konfiguracji repozytorium
+  (INSTRUKCJA-GITHUB.md).
+
+
+==========================================================================
+v32  - Saper, Snake, nazwa Arkana Browser, kontrola wydania
+==========================================================================
+- Nowa aplikacja Saper: plansze od 5x5 do 40x30, liczba min do 55% pól, presety Łatwy, Średni,
+  Trudny i Własny, rozmiar pola lub dopasowanie do okna, życia (1-5), bezpieczny pierwszy klik,
+  akordy (klik w cyfrę lub środkowy przycisk), znaki zapytania, zawinięta plansza (krawędzie łączą
+  się), tryb flagi i rekordy czasu osobno dla każdej konfiguracji.
+- Saper rysuje planszę na canvasie z animacją odsłaniania falą, wstrząsem po trafieniu miny i falą
+  zwycięstwa; pętla animacji działa tylko wtedy, gdy coś się zmienia.
+- Konfigurator Sapera (przycisk ☰): podgląd planszy na żywo z pulsującymi minami i obwódką
+  zawinięcia, pierścień zagęszczenia z oceną trudności (Łatwy do Ekstremalny), suwaki, przełączniki
+  i przycisk "Zastosuj i zagraj".
+- Nowa aplikacja Snake: plansza od 10x10 do 50x40, szybkość 3-30 pól/s z przyspieszaniem, początkowa
+  długość, wzrost za jabłko, liczba jabłek naraz (1-10), częstotliwość pojawiania się nowych jabłek,
+  czas życia jabłka, jabłka złote (+30 pkt i dłuższy wzrost) oraz trujące (-5 pkt i skrócenie węża),
+  przeszkody (do 12% pól), przenikanie ścian i presety Klasyczny, Szybki, Labirynt i Bez ścian.
+- Snake: płynny ruch węża, sterowanie strzałkami, WASD lub gestem, pauza spacją i automatycznie przy
+  ukryciu okna oraz rekordy punktowe osobno dla każdej konfiguracji.
+- Konfigurator Snake'a: podgląd na żywo, w którym autopilot steruje wężem na planszy o wybranych
+  ustawieniach, oraz miernik tempa z oceną trudności.
+- Obie gry mają tło z cząsteczkami i suwak siły w Ustawienia > Interfejs > Tło aplikacji, korzystają
+  wyłącznie z kolorów motywu, respektują wyłącznik animacji aplikacji i mają wspólne elementy
+  konfiguratora; 55 nowych tekstów w 8 językach.
+- Nowa nazwa przeglądarki: Arkana Browser (interfejs, animacja uruchamiania, tytuły okien,
+  instalator Arkana-Browser-Setup.exe i dokumentacja), nowy identyfikator aplikacji
+  com.arkana.browser oraz repozytorium CzarodziejSmok/ArkanaBrowser.
+- Podtytuł strony startowej brzmi teraz "This is where the Magic happens", z tłumaczeniami w 8
+  językach i zachowaną kapitalizacją słowa Magic.
+- Nowe logo w lewym górnym rogu i na stronie startowej: ikona aplikacji (ośmioramienna gwiazda) w
+  arkanicznym kręgu z pierścieniem run, heksagramem i diamentami; na stronie startowej pierścienie
+  obracają się powoli w przeciwnych kierunkach (animację wyłącza przełącznik animacji przycisków).
+- Napisy dotyczące panelu claude.ai używają neutralnego określenia "asystent" (np. "Panel
+  asystenta", "Zapytaj asystenta lub wpisz adres..."); adres claude.ai i partycja panelu pozostają
+  bez zmian, więc logowanie w panelu jest zachowane.
+- Dane użytkownika są przenoszone automatycznie z %APPDATA%\claude-browser do
+  %APPDATA%\arkana-browser (zmiana nazwy folderu, a przy blokadzie kopiowanie); znacznik
+  eksportowanej konfiguracji zmieniony na arkana-browser.
+- Uwaga: zmiana identyfikatora aplikacji oznacza, że zainstalowany Claude Browser nie zaktualizuje
+  się w miejscu do Arkana Browser; wymagana jest jednorazowa instalacja nowej wersji i
+  odinstalowanie starej.
+- Kontrola wydania (check-release.js, polecenie npm run check, uruchamiana także w GitHub Actions):
+  zgodność wersji package.json, stałej VERSION i nagłówka README, obecność plików w build.files,
+  składnia, spójność tłumaczeń (8 kolumn, brak duplikatów i niezgodnych placeholderów), kolizje nazw
+  globalnych, obsługa kanałów IPC i konfiguracja repozytorium.
+
+
+==========================================================================
+v32.1  - przywrócenie ikony aplikacji, koło alchemiczne w animacji uruchamiania
+==========================================================================
+- Ikona aplikacji (pasek zadań i animacja uruchamiania) wraca do pierwotnego wyglądu; arkaniczne
+  logo z 0.32 dotyczy wyłącznie interfejsu.
+- Animacja uruchamiania: w chwili uderzenia ikony w tło pojawia się świecące koło alchemiczne
+  (pierścień run i heksagram), które obraca się szybko w stronę przeciwną do obrotu ikony,
+  wyhamowuje i gaśnie w ciągu 470 ms, czyli przed ruszeniem ikony w lewo.
+- Koło jest rysowane jednorazowo na osobnym canvasie, a w trakcie animacji tylko obracane i
+  skalowane, więc nie zmienia czasów animacji ani dźwięku.
+- Numer 32.0.1 pozwala opublikować poprawkę bez kolizji z tagiem v32.0.0.
+
+==========================================================================
+v33  - uporządkowane ustawienia, panel ChangeLog, asystent bez auto-wysuwania
+==========================================================================
+- Ustawienia mają nowy układ zakładek (Motyw, Interfejs, Aplikacje, Historia, Skróty, System); w każdej
+  zakładce opcje jednej funkcji są zebrane pod widocznym nagłówkiem, oddzielonym delikatną linią od poprzedniego.
+- Zakładka Aplikacje zawiera teraz wszystko, co dotyczy aplikacji: pasek aplikacji, okrągłe okna, animację
+  aplikacji i tło aplikacji z suwakami. Nowa zakładka Historia zbiera zapisywanie, czas przechowywania
+  i strony pomijane. Nowa zakładka System zbiera język, aktualizacje oraz zapis, wczytanie i reset konfiguracji.
+- Panel asystenta nie wysuwa się już sam po każdym zapytaniu w pasku adresu ani na stronie startowej.
+  Otwierasz go przyciskiem, skrótem lub z paska bocznego.
+- Nowa opcja: Interfejs > Panele boczne > Pokaż przycisk panelu asystenta (domyślnie włączona).
+- Nowy przycisk ChangeLog (ikona notatki) obok ustawień i panelu asystenta, z opcją ukrycia w Interfejs > Panele boczne.
+- Panel ChangeLog wysuwa się z prawej strony. Pokazuje wersje jako zwinięte panele ze strzałką po prawej;
+  kliknięcie rozwija cały wpis. U góry przełączniki Wydane i Niewydane filtrują listę, a sama lista ma pasek przewijania.
+- Panel czyta plik CHANGELOG.txt z folderu aplikacji przy każdym otwarciu, więc zmiany w pliku są widoczne
+  po ponownym uruchomieniu. Nagłówek z liniami = to wersja niewydana, nagłówek z liniami * to wydana.
+- Wpisy są tłumaczone na język interfejsu (przez ten sam publiczny punkt tłumacza co aplikacja Tłumacz),
+  a tłumaczenia zapamiętywane lokalnie; bez sieci lub w języku śląskim widać oryginał po polsku.
+- Kontrola wydania sprawdza obecność CHANGELOG.txt na liście build.files i wpis dla bieżącej wersji.
+
+
+==========================================================================
+v34 - animacje ikon i kliknięć, Saper, kategorie aplikacji, wersje vx w ChangeLogu
+==========================================================================
+- Nowa animacja po najechaniu na ikonę Arkana w lewym górnym rogu (promienie pulsują po kolei, z poświatą)
+  oraz na ikonę ChangeLog (przechyla się, a linie notatki dopisują się).
+- Delikatna animacja kliknięcia przycisków: wciśnięcie i fala od miejsca kliknięcia (przyciski u góry,
+  na dole paska bocznego i przycisk Arkana). Wyłącza ją opcja animacji przycisków.
+- Saper: wycentrowany nagłówek, wypukłe przyciski nowej gry i flagi oraz wgłębione liczniki min i czasu.
+- Próbki koloru tła w ustawieniach są wyraźniejsze i nie zależą od suwaków nasycenia i jasności.
+- Lista dostępnych aplikacji jest podzielona na kategorie: Programy i Gry.

@@ -1,12 +1,13 @@
 {
-  "name": "claude-browser",
-  "version": "31.0.3",
+  "name": "arkana-browser",
+  "version": "34.0.0",
   "description": "Przeglądarka z podręcznością i customizajcą w myśli.",
   "author": "CzarodziejSmok",
   "license": "MIT",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "check": "node check-release.js",
     "dist": "electron-builder --win --publish never",
     "release": "electron-builder --win --publish always"
   },
@@ -18,9 +19,9 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "com.claude.browser",
-    "productName": "Claude Browser",
-    "copyright": "Claude Browser",
+    "appId": "com.arkana.browser",
+    "productName": "Arkana Browser",
+    "copyright": "Arkana Browser",
     "directories": {
       "output": "dist"
     },
@@ -33,7 +34,8 @@
       "index.html",
       "icon.ico",
       "icon.png",
-      "package.json"
+      "package.json",
+      "CHANGELOG.txt"
     ],
     "asar": true,
     "win": {
@@ -48,13 +50,13 @@
       "icon": "icon.ico"
     },
     "nsis": {
-      "artifactName": "Claude-Browser-Setup.exe",
+      "artifactName": "Arkana-Browser-Setup.exe",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Claude Browser",
+      "shortcutName": "Arkana Browser",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
       "installerIcon": "icon.ico",
@@ -65,7 +67,7 @@
       {
         "provider": "github",
         "owner": "CzarodziejSmok",
-        "repo": "Browser",
+        "repo": "ArkanaBrowser",
         "releaseType": "release"
       }
     ]

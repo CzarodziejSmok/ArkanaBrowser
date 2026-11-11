@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('api', {
   onFfProgress: cb => ipcRenderer.on('ff-progress', (_e, m) => cb(m)),
   saveOut: m => ipcRenderer.invoke('save-out', m),
   htmlToPdf: html => ipcRenderer.invoke('html-to-pdf', html),
+  changelog: () => ipcRenderer.invoke('changelog-get'),
   httpGet: url => ipcRenderer.invoke('http-get', url),
   attention: () => ipcRenderer.send('attention'),
   winCtl: a => ipcRenderer.send('win-ctl', a),
