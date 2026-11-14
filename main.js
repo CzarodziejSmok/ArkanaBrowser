@@ -2,7 +2,14 @@ const { app, BrowserWindow, nativeTheme, nativeImage, ipcMain, dialog, screen, n
 const path = require('path');
 const fs = require('fs');
 const ffm = require('./ffmpeg');
+const imp = require('./importer');
+const perms = require('./permissions'), adblock = require('./adblock'), vaultMod = require('./vault');
 nativeTheme.themeSource = 'dark';
+// Identyfikator przeglądarki jak w zwykłym Chromium: bez "Electron" i nazwy aplikacji. Ustawiony globalnie (a nie atrybutem useragent
+// na każdej karcie), bo nadpisanie UA na karcie wyłącza nagłówki Client Hints i navigator.userAgentData, a strona podająca się
+// za Chrome bez nich bywa odrzucana (np. przy logowaniu do konta Google: "ta przeglądarka lub aplikacja może nie być bezpieczna").
+{ const major = String(process.versions.chrome || '130').split('.')[0], plat = process.platform === 'win32' ? 'Windows NT 10.0; Win64; x64' : process.platform === 'darwin' ? 'Macintosh; Intel Mac OS X 10_15_7' : 'X11; Linux x86_64';
+  app.userAgentFallback = 'Mozilla/5.0 (' + plat + ') AppleWebKit/537.36 (KHTML, like Gecko) Chrome/' + major + '.0.0.0 Safari/537.36'; }
 // mniej pracy w tle: wyłączone usługi, których przeglądarka nie używa (Cast, podpowiedzi optymalizacji, tłumaczenie Chromium)
 app.commandLine.appendSwitch('disable-features', 'MediaRouter,OptimizationHints,Translate');
 app.commandLine.appendSwitch('disable-background-networking');
@@ -43,6 +50,18 @@ const HTTP_HOSTS = ['open.er-api.com', 'api.frankfurter.dev', 'translate.googlea
 ipcMain.handle('changelog-get', () => {   // CHANGELOG.txt z folderu aplikacji, czytany przy każdym otwarciu panelu
   try { return { ok: true, text: fs.readFileSync(path.join(__dirname, 'CHANGELOG.txt'), 'utf8').replace(/^\uFEFF/, '') }; }
   catch (e) { return { ok: false, err: String(e.message || e) }; }
+});
+ipcMain.handle('import-detect', () => { try { return imp.detect(); } catch (e) { return []; } });   // import z innych przeglądarek (importer.js)
+ipcMain.handle('import-run', (e, id, what) => imp.run(String(id), what || {}, { session: require('electron').session }).catch(err => ({ ok: false, err: String((err && err.message) || err) })));
+ipcMain.handle('import-folder', async e => {
+  const r = await dialog.showOpenDialog(winOf(e), { properties: ['openDirectory'] });
+  if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true };
+  try { return { ok: true, list: imp.fromFolder(r.filePaths[0]) }; } catch (err) { return { ok: false, err: String((err && err.message) || err) }; }
+});
+ipcMain.handle('import-html', async e => {
+  const r = await dialog.showOpenDialog(winOf(e), { properties: ['openFile'], filters: [{ name: 'Zakładki (HTML)', extensions: ['html', 'htm'] }] });
+  if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true };
+  return imp.fromHtml(r.filePaths[0]);
 });
 ipcMain.handle('http-get', async (_e, url) => {
   try {
@@ -150,12 +169,22 @@ function onKey(e, i, win) {
     if (p.length === cur.size && p.every(x => cur.has(x))) {
       e.preventDefault();
       if (i.isAutoRepeat) return;
-      if (a === 'devtools') win.webContents.toggleDevTools(); else win.webContents.send('shortcut', a);
+      if (a === 'ui-devtools') win.webContents.toggleDevTools(); else win.webContents.send('shortcut', a);
       return;
     }
   }
 }
 
+// Przypięty skrót na pasku zadań ma zachować ikonę Arkany (bez tego Windows bierze ikonę z electron.exe, gdy aplikacja działa z kodu źródłowego).
+// Po tej zmianie przypięty wcześniej skrót trzeba odpiąć i przypiąć ponownie.
+function applyTaskbar(win) {
+  if (process.platform !== 'win32') return;
+  try {
+    const exe = process.execPath, rel = app.isPackaged ? '"' + exe + '"' : '"' + exe + '" "' + app.getAppPath() + '"';
+    win.setAppDetails({ appId: 'com.arkana.browser', appIconPath: app.isPackaged ? exe : ICON, appIconIndex: 0, relaunchCommand: rel, relaunchDisplayName: 'Arkana Browser' });
+  } catch (e) { console.error('setAppDetails', e); }
+}
+const GUEST_PRELOAD = path.join(__dirname, 'wv-preload.js');
 function createWindow(o = {}) {
   const win = new BrowserWindow({
     width: o.w || 1360, height: o.h || 880, x: o.x, y: o.y, title: 'Arkana Browser', backgroundColor: '#16120f',
@@ -163,6 +192,7 @@ function createWindow(o = {}) {
     ...(fs.existsSync(ICON) ? { icon: ICON } : {}),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), webviewTag: true, contextIsolation: true }
   });
+  applyTaskbar(win);
   const id = win.webContents.id;
   if (o.state) inits.set(id, { secondary: true, state: o.state });
   win.setMenu(null);
@@ -171,6 +201,10 @@ function createWindow(o = {}) {
   win.on('blur', () => downOf(win).clear());
   const handle = (e, i) => onKey(e, i, win);
   win.webContents.on('before-input-event', handle);
+  win.webContents.on('will-attach-webview', (_e, wp, params) => {   // karty dostają tylko nasz skrypt wp-preload; panel asystenta (partycja claude) żadnego
+    delete wp.preloadURL; wp.nodeIntegration = false; wp.nodeIntegrationInSubFrames = false; wp.contextIsolation = true;
+    if (params.partition === 'persist:claude') delete wp.preload; else wp.preload = GUEST_PRELOAD;
+  });
   win.webContents.on('did-attach-webview', (_e, wc) => {
     wc.on('before-input-event', handle); // skróty działają też, gdy fokus jest na stronie
     wc.setWindowOpenHandler(({ url }) => { win.webContents.send('open-tab', url); return { action: 'deny' }; });
@@ -183,6 +217,20 @@ function createWindow(o = {}) {
 }
 
 app.whenReady().then(() => {
+  // zabezpieczenie: gdyby Client Hints zawierały markę "Electron", usuwamy ją z nagłówków (domyślna sesja i panel asystenta)
+  try {
+    const { session } = require('electron'), scrub = d => { const h = d.requestHeaders; for (const k of Object.keys(h)) if (/^sec-ch-ua(-full-version-list)?$/i.test(k) && /electron/i.test(h[k])) h[k] = h[k].replace(/"Electron";v="[^"]*",?\s*/gi, '').replace(/,\s*$/, ''); return { requestHeaders: h }; };
+    for (const ses of [session.defaultSession, session.fromPartition('persist:claude')]) ses.webRequest.onBeforeSendHeaders((d, cb) => cb(scrub(d)));
+  } catch (e) { console.error('client-hints', e); }
+  try {
+    const { session, safeStorage } = require('electron'), dir = app.getPath('userData');
+    const store = new perms.Store(path.join(dir, 'permissions.json')), ask = perms.broker(ipcMain, store);
+    for (const ses of [session.defaultSession, session.fromPartition('persist:claude')]) perms.install(ses, store, ask);
+    adblock.install(session.defaultSession);   // panel asystenta zostaje bez filtrowania
+    ipcMain.on('adblock-set', (_e, on) => { adblock.state.on = !!on; });
+    ipcMain.handle('adblock-stats', () => ({ on: adblock.state.on, count: adblock.state.count }));
+    vaultMod.register(ipcMain, new vaultMod.Vault(path.join(dir, 'vault.bin'), vaultMod.safeCipher(safeStorage)));
+  } catch (e) { console.error('prywatność', e); }
   // automatyczne aktualizacje: tylko pierwsza instancja (kolejne nie mogą jednocześnie pobierać do tego samego folderu)
   try { require('./updater').init({ app, ipcMain, BrowserWindow, shell, net, isSecondary: id => inits.has(id), primary: slot.n === 0 }); } catch (e) { console.error('updater', e); }
   createWindow();
