@@ -706,3 +706,81 @@ v34 - animacje ikon i kliknięć, Saper, kategorie aplikacji, wersje vx w Change
 - Saper: wycentrowany nagłówek, wypukłe przyciski nowej gry i flagi oraz wgłębione liczniki min i czasu.
 - Próbki koloru tła w ustawieniach są wyraźniejsze i nie zależą od suwaków nasycenia i jasności.
 - Lista dostępnych aplikacji jest podzielona na kategorie: Programy i Gry.
+
+
+==========================================================================
+v35 - ikony SVG aplikacji i folderów, tryby Morse’a i Braille’a
+==========================================================================
+- Ikony wszystkich aplikacji (pasek, nagłówki okien, lista w ustawieniach) są liniowymi SVG
+  w stylu ikon ustawień i ChangeLogu.
+- Foldery mają 24 liniowe ikony zamiast emoji (w tym w oknie wyboru ikony); dotychczasowe emoji z listy
+  są wyświetlane jako ich odpowiedniki SVG, a własne emoji wpisane przez użytkownika zostają bez zmian.
+- Wybór języka: przy każdym języku nowe przełączniki trybu (zwykły tekst, kod Morse’a, pismo Braille’a),
+  zapamiętywane osobno dla każdego języka. Tryb obejmuje cały tekst interfejsu, w tym podpowiedzi
+  i treść ChangeLogu. Chiński: tryb niedostępny (brak tabeli znaków).
+- Poprawka: ustawienia nie gubią już zapisanych map wartości (klucze spoza domyślnych).
+
+
+==========================================================================
+v36 - import z innych przeglądarek
+==========================================================================
+- Kreator importu (Ustawienia > System > Import z innej przeglądarki oraz przycisk na pustej stronie
+  startowej): automatycznie wykrywa profile Chrome, Edge, Brave, Vivaldi, Chromium, Opery, Opery GX i Firefoksa (Windows).
+- Przenosi zakładki (każdy folder zakładek do osobnego folderu Arkany, karty ładują się po kliknięciu),
+  historię (do 30 000 najnowszych wpisów, z uwzględnieniem okresu przechowywania i stron pomijanych)
+  oraz ciasteczka (także do sesji panelu asystenta dla claude.ai i anthropic.com).
+- Import zakładek z pliku HTML eksportowanego z dowolnej przeglądarki.
+- Własny czytnik SQLite (tylko odczyt, WAL, duże bazy), bez dodawania zależności; nowy plik importer.js.
+- Ograniczenia: przeglądarka źródłowa musi być zamknięta; ciasteczka chronione szyfrowaniem aplikacyjnym
+  Chrome są pomijane; nie importuje haseł, rozszerzeń ani ustawień innych przeglądarek.
+
+
+==========================================================================
+v37 - wybór wyszukiwarki i jej import
+==========================================================================
+- Nowe ustawienie Interfejs > Wyszukiwarka: Google (tylko wyniki WWW, dotychczasowe zachowanie i
+  wartość domyślna), Google, Bing, DuckDuckGo, Brave Search, Ecosia, Yahoo, Qwant, Yandex lub własny
+  adres wyszukiwania z %s. Używana, gdy w pasku adresu wpiszesz tekst zamiast adresu.
+- Kreator importu przenosi też domyślną wyszukiwarkę z Chrome, Edge, Brave, Opery, Chromium i Firefoksa
+  (znane wyszukiwarki trafiają na listę, pozostałe jako własny adres).
+- Import wyszukiwarki z Firefoksa wymagał dekodera LZ4 (plik search.json.mozlz4); dodany do importer.js.
+
+
+==========================================================================
+v37.1 - Opera GX w imporcie, ręczny wybór folderu profilu, poprawka logowania do Google
+==========================================================================
+- Import: szersze wykrywanie Opery i Opery GX (Roaming i Local, podfoldery Default i Profile N), dodane
+  Yandex Browser i Chrome Beta; w profilach Chromium Local State jest szukany także w folderze nadrzędnym.
+- Nowa karta „Wskaż folder profilu...” w kreatorze importu: ręczny wybór folderu przeglądarki (profil
+  Chromium albo Firefoksa, lub folder nadrzędny do dwóch poziomów w dół).
+- Logowanie do konta Google: identyfikator przeglądarki ustawiany globalnie (jak w zwykłym Chromium)
+  zamiast atrybutem na każdej karcie, który wyłączał nagłówki Client Hints; marka „Electron” jest usuwana
+  z nagłówków sec-ch-ua.
+
+
+==========================================================================
+v38 - lista zadań w Notatniku
+==========================================================================
+- Notatnik: nowy przycisk przełącza notatkę w tryb listy zadań (kwadraty do odznaczania, Enter dodaje
+  pozycję, Backspace na pustej ją usuwa, strzałki przenoszą fokus, przycisk „Usuń wykonane”, licznik
+  wykonanych). Pozycje są zapisane w tekście notatki jako „[ ] tekst” i „[x] tekst”, więc przełączanie
+  tekst - lista nie traci danych, a wyszukiwanie i duplikowanie działają bez zmian.
+- Na liście notatek przy notatkach w trybie listy widać postęp (np. 2/6).
+- Z listy aplikacji usunięto placeholder „Lista zadań” (zastępuje go tryb listy w Notatniku).
+
+**************************************************************************
+v39 - uprawnienia stron, hasła, blokowanie reklam, narzędzia strony, podział kodu
+**************************************************************************
+- Okno zgody na uprawnienia stron (kamera, mikrofon, lokalizacja, powiadomienia, schowek, udostępnianie
+  ekranu i inne): Zezwól (zapamiętaj), Tylko tym razem, Zablokuj (zapamiętaj). Decyzjami zarządzasz w
+  Ustawienia > Prywatność. Nieznane uprawnienia są odrzucane.
+- Wyszukiwanie na stronie (Ctrl+F), zoom stron zapamiętywany dla każdej witryny (Ctrl +, Ctrl -, Ctrl 0,
+  Ctrl + kółko myszy), drukowanie (Ctrl+P). F12 otwiera teraz narzędzia deweloperskie strony; narzędzia
+  samego interfejsu to Ctrl+Shift+F12.
+- Menedżer haseł z szyfrowaniem systemowym: propozycja zapisu po logowaniu, wypełnianie po kliknięciu i
+  tylko dla tej samej witryny, lista z podglądem, kopiowaniem i usuwaniem.
+- Blokowanie reklam i śledzących skryptów (lista 116 domen, tylko żądania z innych witryn).
+- Nowa zakładka ustawień Prywatność; cienki pasek z przyciskiem zamknięcia jest przyklejony u góry ustawień.
+- Ikona przypiętego skrótu na pasku zadań zachowuje ikonę Arkany (odepnij i przypnij ponownie).
+- Kod podzielony na moduły (src/js, css/app.css, osobne pliki procesu głównego); aplikacja ładuje
+  zbudowany js/bundle.js. Dodana polityka CSP (bez skryptów wbudowanych), izolacja kart i testy (npm test).
