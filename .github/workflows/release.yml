@@ -35,6 +35,12 @@ jobs:
             exit 1
           fi
 
+      - name: Złożenie skryptów aplikacji (src/js do js/bundle.js)
+        run: node tools/bundle.js
+
+      - name: Kontrola wydania (wersje, pakowanie, składnia, tłumaczenia)
+        run: node check-release.js --ci
+
       - name: Instalacja zależności
         run: npm install
 
