@@ -10,10 +10,18 @@ function flipRun(cfg,fn){
 function startItemDrag(e,cfg){
   if(e.button!==0) return;
   const el0=cfg.item(); if(!el0) return;
-  const r0=el0.getBoundingClientRect(), sx=e.clientX, sy=e.clientY, orig=cfg.order(), w=Math.max(r0.width,120), h=r0.height, offX=Math.min(sx-r0.left,w-8), offY=sy-r0.top;
-  let started=false, ghost=null, mode='bar', snapUntil=0, over=false;
+  const r0=el0.getBoundingClientRect(), sx=e.clientX, sy=e.clientY, orig=cfg.order();
+  let w=Math.max(r0.width,cfg.minW||120), h=r0.height, offX=Math.min(sx-r0.left,w-8), offY=sy-r0.top;
+  let started=false, ghost=null, mode='bar', snapUntil=0, over=false, lastEv=null;
+  // element przeskoczył do innego paska (np. karta -> przypięte): duch przyjmuje rozmiar i wygląd elementu w nowym miejscu
+  const swapGhost=()=>{ const it=cfg.item(); if(!it||!ghost) return; const r=it.getBoundingClientRect(), fx=offX/w;
+    w=Math.max(r.width,cfg.minW||40); h=r.height; offX=Math.min(Math.max(8,fx*w),w-8); offY=h/2;
+    const ng=it.cloneNode(true); ng.classList.remove('on','ent','rise','sdn','out','drg','gone'); ng.classList.add('gh'); ng.style.width=w+'px'; ng.style.height=h+'px';
+    ng.style.left=ghost.style.left; ng.style.top=ghost.style.top; ghost.replaceWith(ng); ghost=ng; };
   const setGone=v=>{ dragGone=v; const it=cfg.item(); if(it) it.classList.toggle('gone',v); };
   const pos=ev=>{
+    lastEv=ev;
+    if(cfg.retarget&&cfg.retarget(ev)){ if(over&&cfg.xend){ over=false; cfg.xend(); } swapGhost(); mode='bar'; setGone(false); ghost.style.visibility=''; snapUntil=performance.now()+180; }
     const z=cfg.zone().getBoundingClientRect(), rg=cfg.range().getBoundingClientRect();
     const dist=Math.max(z.left-ev.clientX,0,ev.clientX-z.right,z.top-ev.clientY,ev.clientY-z.bottom);
     if(mode==='bar'&&dist>44&&cfg.canDetach()){ mode='free'; setGone(true); snapUntil=performance.now()+180; }
@@ -30,6 +38,7 @@ function startItemDrag(e,cfg){
       if(idx!==all.findIndex(x=>x.dataset.id===cfg.id)) flipRun(cfg,()=>cfg.move(cfg.id,idx));
     }
   };
+  cfg.poke=()=>{ if(started&&lastEv) pos(lastEv); };
   const mv=ev=>{
     if(!started){ if(Math.hypot(ev.clientX-sx,ev.clientY-sy)<5) return; started=true;
       ghost=el0.cloneNode(true); ghost.classList.remove('on','ent','rise','sdn','out','drg','gone'); ghost.classList.add('gh'); ghost.style.width=w+'px'; ghost.style.height=h+'px';
@@ -41,19 +50,46 @@ function startItemDrag(e,cfg){
     if(!started) return finish();
     if(mode==='free'&&cfg.canDetach()){ ghost.remove(); finish(); (cfg.drop?cfg.drop(ev):Promise.resolve(false)).then(ok=>{ if(!ok) cfg.detach(ev); }); return; }
     const it=cfg.item(), rr=it.getBoundingClientRect(), g=ghost; g.style.transition='left .16s,top .16s'; g.style.left=rr.left+'px'; g.style.top=rr.top+'px'; setTimeout(()=>g.remove(),170); finish(); };
-  const kd=ev=>{ if(ev.key==='Escape'&&started){ ev.stopPropagation(); mode='bar'; if(cfg.xend) cfg.xend(); cfg.setOrder(orig); ghost.remove(); finish(); } };
+  const kd=ev=>{ if(ev.key==='Escape'&&started){ ev.stopPropagation(); mode='bar'; if(cfg.xend) cfg.xend(); if(cfg.cancel) cfg.cancel(); else cfg.setOrder(orig); ghost.remove(); finish(); } };
   addEventListener('mousemove',mv); addEventListener('mouseup',up); document.addEventListener('keydown',kd,true);
 }
-function tabDrag(e,id,pinned){
-  const cont=()=>pinned?$('pinsi'):$('tabs'), grp=()=>F().tabs.filter(t=>!!t.pinned===pinned);
+// strefa, nad którą przeciągana karta „wskakuje” do przypiętych: pasek u góry (także schowany, gdy nie ma przypiętych) albo lewy pasek
+function pinZone(){
+  if(pinLeft()){ const s=$('side').getBoundingClientRect(), fl=$('fl').getBoundingClientRect(); return {left:s.left,right:Math.max(s.right,s.left+60),top:fl.top,bottom:s.bottom,empty:!$('lpins').children.length}; }
+  const p=$('pins').getBoundingClientRect();
+  if(p.height>=6) return {left:p.left,right:p.right,top:p.top,bottom:p.bottom+4,empty:false};
+  const tr=$('tabrow').getBoundingClientRect(); return {left:tr.left,right:tr.right,top:tr.bottom,bottom:tr.bottom+30,empty:true};
+}
+const sidePin=()=>$('sidewrap').classList.toggle('pin',!!editing||!!pk||menuOpen||(dragId!==null&&pinLeft()&&!!F().tabs.find(t=>t.id===dragId&&t.pinned)));
+function tabDrag(e,id,pinned0){
+  let pinned=pinned0, dwell=0, dwT=0;
+  const snap=F().tabs.slice(), tab=()=>F().tabs.find(t=>t.id===id);
+  const cont=()=>pinned?pinBox():$('tabs'), grp=()=>F().tabs.filter(t=>!!t.pinned===pinned);
   const setGroup=ids=>{ const f=F(), m=new Map(f.tabs.map(t=>[t.id,t])), slots=f.tabs.map((t,i)=>!!t.pinned===pinned?i:-1).filter(i=>i>=0); slots.forEach((sl,k)=>{ f.tabs[sl]=m.get(ids[k]); }); };
-  startItemDrag(e,{id,axis:'x',sel:pinned?'.pt:not(.out)':'.tab:not(.out)',container:cont,zone:()=>pinned?$('pins'):$('tabrow'),range:cont,
+  const inR=(ev,r,m=0)=>ev.clientX>=r.left-m&&ev.clientX<=r.right+m&&ev.clientY>=r.top-m&&ev.clientY<=r.bottom+m;
+  let cfg;
+  const setPinned=v=>{ const t=tab(); if(!t) return; t.pinned=v; pinned=v; dragGone=false; cfg.sel=v?'.pt:not(.out):not(.gp)':'.tab:not(.out)'; cfg.axis=v&&pinLeft()?'y':'x'; cfg.minW=v?40:120; renderTabs(); sidePin(); };
+  cfg={id,axis:pinned&&pinLeft()?'y':'x',minW:pinned?40:120,sel:pinned?'.pt:not(.out):not(.gp)':'.tab:not(.out)',container:cont,zone:()=>pinned?(pinLeft()?$('side'):$('pins')):$('tabrow'),range:cont,
     item:()=>cont().querySelector(`[data-id="${id}"]`),order:()=>grp().map(t=>t.id),setOrder:setGroup,
     move:(tid,idx)=>{ const ids=grp().map(t=>t.id).filter(x=>x!==tid); ids.splice(idx,0,tid); setGroup(ids); renderTabs(); },
-    rerender:renderTabs,canDetach:()=>true,detach:ev=>detachTab(id,ev),
+    // karta nad paskiem przypiętych wskakuje na niego (i odwrotnie: przypięta nad paskiem kart wraca między karty)
+    retarget:ev=>{
+      const pz=pinZone(), tr=$('tabrow').getBoundingClientRect(); let want=pinned;
+      if(!pinned&&inR(ev,pz)){
+        if(pz.empty){ const now=performance.now(); if(!dwell) dwell=now; if(now-dwell<170){ clearTimeout(dwT); dwT=setTimeout(()=>cfg.poke&&cfg.poke(),180); return false; } }   // schowany pasek wysuwa się po chwili, nie przy każdym przejściu kursora
+        want=true;
+      } else if(pinned&&inR(ev,tr)) want=false;
+      else if(pinned!==pinned0&&!inR(ev,pinned?pz:tr,24)) want=pinned0;   // wyjechanie poza pasek: karta wraca tam, skąd była
+      if(!inR(ev,pz)) dwell=0;
+      if(want===pinned) return false;
+      setPinned(want); return true;
+    },
+    cancel:()=>{ const f=F(); f.tabs.splice(0,f.tabs.length,...snap); const t=tab(); if(t) t.pinned=pinned0; pinned=pinned0; renderTabs(); },
+    start:sidePin,rerender:()=>{ clearTimeout(dwT); renderTabs(); sidePin(); },canDetach:()=>true,detach:ev=>detachTab(id,ev),
     xmove:ev=>{ try{ return window.api.xdMove({sx:ev.screenX,sy:ev.screenY,zone:dropZone(),tab:tabPayload(id)}).catch(()=>false); }catch{ return Promise.resolve(false); } },
     xend:()=>{ try{ window.api.xdEnd(); }catch{} },
-    drop:async ev=>{ try{ const ok=await window.api.xdDrop({sx:ev.screenX,sy:ev.screenY,zone:dropZone(),tab:tabPayload(id)}); if(ok) closeAfterMove(id); return !!ok; }catch{ return false; } }});
+    drop:async ev=>{ try{ const ok=await window.api.xdDrop({sx:ev.screenX,sy:ev.screenY,zone:dropZone(),tab:tabPayload(id)}); if(ok) closeAfterMove(id); return !!ok; }catch{ return false; } }};
+  startItemDrag(e,cfg);
 }
 const dropZone=()=>Math.round(Math.max($('tabrow').getBoundingClientRect().bottom,$('pins').getBoundingClientRect().bottom));   // dół paska kart (i przypiętych) względem okna
 const tabPayload=id=>{ const t=F().tabs.find(x=>x.id===id); return t?{url:t.url,title:t.title,icon:t.icon,muted:t.muted}:null; };
@@ -96,7 +132,7 @@ function detachFolder(id,ev){
   S.folders=S.folders.filter(x=>x.id!==id); if(S.cur===id) switchFolder(S.folders[0].id); else { renderSide(); save(); }
 }
 $('tabs').addEventListener('mousedown',e=>{ const el=e.target.closest('.tab'); if(!el||e.target.dataset.x||el.classList.contains('out')) return; tabDrag(e,el.dataset.id,false); });
-$('pinsi').addEventListener('mousedown',e=>{ const el=e.target.closest('.pt'); if(el&&!el.classList.contains('out')) tabDrag(e,el.dataset.id,true); });
+for(const el of [$('pinsi'),$('lpins')]) el.addEventListener('mousedown',e=>{ const p=e.target.closest('.pt'); if(p&&!p.classList.contains('out')&&!p.classList.contains('gp')) tabDrag(e,p.dataset.id,true); });   // strony przypięte wszędzie: bez przeciągania (menu pod prawym przyciskiem)
 $('fl').addEventListener('mousedown',e=>{ const el=e.target.closest('.fd'); if(!el||!el.dataset.id||e.target.closest('.ems')||el.classList.contains('out')) return; folderDrag(e,el.dataset.id); });
 document.addEventListener('click',e=>{ if(dragSwallow){ e.stopPropagation(); e.preventDefault(); } },true);
 

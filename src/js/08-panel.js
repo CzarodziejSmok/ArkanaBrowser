@@ -26,7 +26,7 @@ $('toggle').onclick=togglePanel;
 $('close').onclick=()=>setPanel(false);
 const ACTS={
   'new-tab':()=>newTab(),'close-tab':()=>closeTab(F().active),'dup-tab':()=>dupTab(F().active),'reload-tab':()=>reloadTab(F().active),
-  'pin-tab':()=>pinTab(F().active),'mute-tab':()=>muteTab(F().active),'restore-tab':restoreTab,
+  'pin-tab':()=>pinTab(F().active),'pin-global':()=>toggleGlobal(F().active),'mute-tab':()=>muteTab(F().active),'restore-tab':restoreTab,
   'close-all':closeAll,'reload-all':reloadAll,'pin-all':pinAll,'mute-all':muteAll,
   'next-tab':()=>cycle(1),'prev-tab':()=>cycle(-1),'focus-url':()=>{ url.focus(); url.select(); },
   'back':()=>$('back').onclick(),'forward':()=>$('fwd').onclick(),'go-home':goHome,
@@ -54,8 +54,11 @@ const GSP=new Map();
 function glowSp(c,n){ const k=c+'|'+n; let s=GSP.get(k); if(!s){ if(GSP.size>40) GSP.clear(); s=document.createElement('canvas'); s.width=s.height=n; const x=s.getContext('2d'), m=n/2, g=x.createRadialGradient(m,m,0,m,m,m); g.addColorStop(0,`rgba(${c},1)`); g.addColorStop(1,`rgba(${c},0)`); x.fillStyle=g; x.fillRect(0,0,n,n); GSP.set(k,s); } return s; }
 let bgIdle=false, bgLast=0;
 function frame(t){ requestAnimationFrame(frame); if(t-bgLast<28) return; bgLast=t; draw(t); }   // ~30 kl./s wystarcza dla powolnych efektów
-function draw(t){
-  const dt=Math.min(50,(t-last)||16); last=t;
+// okno incognito: efekty tła (zorza, fale, gwiazdy, deszcz, pył) płyną wyraźnie wolniej – czas efektów biegnie INC_SLOW razy wolniej
+const INC_SLOW=.3; let vtime=0;
+function bgClock(t){ const d0=Math.min(50,(t-last)||16); last=t; if(!INC) return {t,dt:d0}; vtime+=d0*INC_SLOW; return {t:vtime,dt:d0*INC_SLOW}; }
+function draw(t0){
+  const bc=bgClock(t0), t=bc.t, dt=bc.dt;
   if(home.style.display==='none'||!W) return;
   const fa=fxv('aurora'), fw=fxv('waves'), fs=fxv('stars'), fr=fxv('rain'), fd=fxv('dust');
   if(!(fa>0||fw>0||fs>0||fr>0||fd>0)){ if(!bgIdle){ cx.clearRect(0,0,W,H); bgIdle=true; } return; }   // bez efektów nic nie rysujemy

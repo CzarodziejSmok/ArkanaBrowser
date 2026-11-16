@@ -1,7 +1,7 @@
 // ---------- tło aplikacji: spokojne cząsteczki (wspólne dla wszystkich aplikacji) ----------
 const AFXP=Array.from({length:40},(_,i)=>({x:Math.random(),y:Math.random(),r:(1+Math.random()*1.7)*2.4,s:.012+Math.random()*.02,a:.35+Math.random()*.55,k:i%2}));
 let afxL=0;
-setInterval(()=>{ if(document.hidden) return; const cs=document.querySelectorAll('canvas.afx'); if(!cs.length) return; const now=performance.now(), dt=afxL?Math.min(120,now-afxL):0; afxL=now;
+setInterval(()=>{ if(document.hidden) return; const cs=document.querySelectorAll('canvas.afx'); if(!cs.length) return; const now=performance.now(), dt=(afxL?Math.min(120,now-afxL):0)*(INC?INC_SLOW:1); afxL=now;
   const A=S.settings.afx, still=document.body.classList.contains('na-apps');
   if(!still) AFXP.forEach(p=>{ p.y-=p.s*dt/500; if(p.y<-.05){ p.y=1.05; p.x=Math.random(); } });
   const spF=glowSp(fgRgb,64), spA=glowSp(acc2Rgb,64);

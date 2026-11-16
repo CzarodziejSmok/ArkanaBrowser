@@ -12,8 +12,8 @@ body{display:flex;flex-direction:column}
 #url:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(var(--accrgb),.18)}
 
 #tabrow{height:38px;flex:none;display:flex;align-items:flex-end;padding:0 10px;background:var(--panel);border-bottom:1px solid var(--line)}
-#tabs{flex:1;min-width:0;height:100%;display:flex;align-items:flex-end;gap:2px;overflow:hidden}
-.tab{position:relative;flex:1 1 0;min-width:30px;max-width:200px;height:32px;display:flex;align-items:center;gap:7px;padding:0 6px 0 11px;border-radius:9px 9px 0 0;color:var(--mut);cursor:pointer;overflow:hidden;transition:background .15s}
+#tabs{flex:0 1 auto;min-width:0;height:100%;display:flex;align-items:flex-end;gap:2px;overflow:hidden}   /* nie rozciąga się: przycisk „+” stoi zaraz za ostatnią kartą (przy braku kart – przy lewej krawędzi), a gdy kart jest dużo, karty zwężają się i „+” zostaje przy prawej krawędzi */
+.tab{position:relative;flex:0 1 200px;min-width:30px;max-width:200px;height:32px;display:flex;align-items:center;gap:7px;padding:0 6px 0 11px;border-radius:9px 9px 0 0;color:var(--mut);cursor:pointer;overflow:hidden;transition:background .15s}
 .tab:hover{background:var(--panel2)}
 .tab.on{background:var(--bg);color:var(--fg);box-shadow:inset 0 2px 0 var(--acc);min-width:96px}
 .tab img,.tab i{width:14px;height:14px;font-style:normal;font-size:12px;color:var(--acc);flex:none;text-align:center}
@@ -1135,3 +1135,106 @@ body.noimph #imph{display:none}
 .pvb button:hover{background:var(--bg);color:var(--fg)}
 .pvr b{flex:0 0 100%}
 .pvr .pvu{flex:1 1 120px}
+
+/* ===== v40: menu przeglądarki, przypięte karty po lewej, przewijanie pasków, okno incognito ===== */
+#menub{flex:none}#menub svg circle{fill:currentColor;stroke:none}
+/* pasek przewijania: cienki, widoczny gdy elementy się nie mieszczą */
+#fl::-webkit-scrollbar,#lpins::-webkit-scrollbar{width:4px}
+#fl::-webkit-scrollbar-thumb,#lpins::-webkit-scrollbar-thumb{background:rgba(var(--accrgb),.22);border-radius:4px}
+#sidewrap:hover #fl::-webkit-scrollbar-thumb,#sidewrap:hover #lpins::-webkit-scrollbar-thumb,#sidewrap.pin #fl::-webkit-scrollbar-thumb,#sidewrap.pin #lpins::-webkit-scrollbar-thumb{background:rgba(var(--accrgb),.4)}
+#fl::-webkit-scrollbar-thumb:hover,#lpins::-webkit-scrollbar-thumb:hover{background:var(--mut)!important}
+#pinsi{overflow:hidden;overflow-x:auto}
+#pinsi::-webkit-scrollbar{height:4px}#pinsi::-webkit-scrollbar-thumb{background:rgba(var(--accrgb),.22);border-radius:4px}
+#pins:hover #pinsi::-webkit-scrollbar-thumb{background:rgba(var(--accrgb),.4)}#pinsi::-webkit-scrollbar-thumb:hover{background:var(--mut)!important}
+.pt{flex:none}
+/* przypięte karty na lewym pasku, pod folderami (oddzielone delikatną kreską) */
+#lpins{display:none;flex:0 1 auto;min-height:44px;flex-direction:column;gap:3px;overflow:hidden auto;margin-top:6px;padding-top:8px;border-top:1px solid transparent;border-image:linear-gradient(90deg,transparent,var(--line) 22%,var(--line) 78%,transparent) 1}
+body.pinl #lpins.has{display:flex}
+body.pinl #fl{flex:0 1 auto;min-height:80px}
+body.pinl #sb{margin-top:auto}
+#lpins .pt{display:flex;align-items:center;gap:8px;min-width:166px;max-width:none;height:auto;padding:8px;border-radius:10px;background:none;border:0;font-size:13px;color:var(--mut)}
+#lpins .pt:hover{background:var(--panel2);color:var(--fg)}
+#lpins .pt.on{background:linear-gradient(90deg,rgba(var(--accrgb),.25),rgba(var(--accrgb),.06));color:var(--fg);box-shadow:inset 2px 0 0 var(--acc)}
+#lpins .pt img,#lpins .pt i{width:20px;height:16px;object-fit:contain;font-size:13px;line-height:16px}
+#lpins .pt span{flex:1;opacity:0;transition:opacity .18s}
+#lpins .pt .mu{opacity:0}
+#sidewrap:hover #lpins .pt span,#sidewrap.pin #lpins .pt span,#sidewrap:hover #lpins .pt .mu,#sidewrap.pin #lpins .pt .mu{opacity:1;transition-delay:.12s}
+#lpins .pt.drg{max-height:44px;transition:max-height .22s,padding .22s,opacity .2s}
+#lpins .pt.drg.gone{max-height:0;padding-top:0;padding-bottom:0;overflow:hidden}
+.pt.gh{border-radius:12px}
+/* okno incognito: kapelusz i okulary przy kartach, logo na stronie startowej */
+.incg{width:14px;height:14px;flex:none;display:block}
+.incg .ih{fill:var(--mut)}.incg .ig{fill:rgba(0,0,0,.35);stroke:var(--mut);stroke-width:1.5;stroke-linecap:round}
+#lpins .pt .incg{width:16px;height:16px}
+#logo .incsp{width:1.6em;height:1.6em;flex:none;margin-right:.2em;overflow:visible}
+.incsp .isr path{fill:none;stroke:var(--acc2);stroke-width:6.4;stroke-linecap:round;filter:drop-shadow(0 0 3px rgba(var(--accrgb),.8))}
+.incsp .ihat{fill:#77777c;stroke:rgba(0,0,0,.35);stroke-width:1.2}.incsp .iband{fill:#4d4d52}
+.incsp .igl circle{fill:rgba(20,20,22,.78);stroke:#8b8b90;stroke-width:3.6}.incsp .igl path{fill:none;stroke:#8b8b90;stroke-width:3.6;stroke-linecap:round}
+#logo .incw{display:flex;flex-direction:column;align-items:flex-start;line-height:.92}
+#logo .incw b{font-size:.8em;font-weight:inherit;position:relative;z-index:1}
+#logo .incw .iw{height:1.11em;width:auto;display:block;margin-top:-.26em;overflow:visible;position:relative;z-index:2}   /* „Arkana” i napis razem ≈ 1,47 em wysokości; napis większy od „Arkana”, jego górne litery nachodzą na dół „Arkana” */   /* napis „incognito” z własnych liter (incWordSvg) */
+.iw .iw1{fill:url(#iwg1)}.iw .iw2{fill:url(#iwg2)}.iw .st{fill:none;stroke-width:3.2}.iw .iw1 .st{stroke:url(#iwg1)}.iw .iw2 .st{stroke:url(#iwg2)}
+#logo .incw .iw{filter:drop-shadow(0 2px 2.4px rgba(0,0,0,.6)) drop-shadow(0 0 1px rgba(0,0,0,.45))}   /* delikatna głębia pod literami */
+.iw .ip{fill:var(--incdot,#e8825a)}   /* kolor motywu o stałej jasności i nasyceniu (ustawia go applySettings) */
+body.inc #tag{color:var(--mut)}
+/* strony przypięte we wszystkich folderach */
+.pt.gp{border-color:rgba(var(--accrgb),.38)}
+.pt .gpi{width:11px;height:11px;flex:none;fill:var(--acc);opacity:.85}
+#lpins .pt.gp{box-shadow:inset 2px 0 0 rgba(var(--accrgb),.45)}#lpins .pt.gp.on{box-shadow:inset 2px 0 0 var(--acc)}
+#lpins .pt .gpi{opacity:0;transition:opacity .18s}#sidewrap:hover #lpins .pt .gpi,#sidewrap.pin #lpins .pt .gpi{opacity:.85}
+/* ---- poradnik po interfejsie (v41): podświetlenie, przyciemnienie i okno z opisem ---- */
+#tour{position:fixed;inset:0;z-index:9000;opacity:0;pointer-events:none;transition:opacity .25s}
+#tour.on{opacity:1;pointer-events:auto}
+#tourh{position:fixed;border-radius:12px;box-shadow:0 0 0 9999px rgba(8,5,3,.68),0 0 0 2px var(--acc),0 0 24px 4px rgba(var(--accrgb),.55);pointer-events:none;transition:left .32s cubic-bezier(.4,0,.2,1),top .32s cubic-bezier(.4,0,.2,1),width .32s cubic-bezier(.4,0,.2,1),height .32s cubic-bezier(.4,0,.2,1)}
+#tourh.c{box-shadow:0 0 0 9999px rgba(8,5,3,.68)}
+#tourc{position:fixed;width:min(340px,calc(100vw - 24px));box-sizing:border-box;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 18px 12px;color:var(--fg);box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 0 1px rgba(var(--accrgb),.18);transition:left .32s cubic-bezier(.4,0,.2,1),top .32s cubic-bezier(.4,0,.2,1)}
+#tourc h4{margin:0 0 8px;font:600 17px Georgia,serif;color:var(--fg)}
+#tourc p{margin:0 0 16px;color:var(--mut);line-height:1.5;font-size:13px}
+#tourc .tn{display:flex;gap:8px;justify-content:flex-end;margin-bottom:12px}
+#tourc .tn button{border:1px solid var(--line);background:var(--panel2);color:var(--fg);border-radius:10px;padding:7px 14px;font:inherit;font-size:13px;cursor:pointer;transition:.15s}
+#tourc .tn button:hover{border-color:var(--acc)}
+#tourc .tn button.ok{background:linear-gradient(90deg,var(--acc),var(--acc2));border-color:transparent;color:#1a110c;font-weight:600}
+#tourc .tf{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding-top:9px;font-size:11px;color:var(--mut)}
+#tourc .tf button{border:0;background:none;color:var(--mut);font:inherit;font-size:11px;cursor:pointer;padding:2px 0;text-decoration:underline;text-underline-offset:2px}
+#tourc .tf button:hover{color:var(--acc)}
+body.na-panel #tour,body.na-panel #tourh,body.na-panel #tourc{transition:none}
+/* paski boczne rozwinięte na czas kroku poradnika (jak po najechaniu myszą) */
+#sidewrap.tourx #side{width:184px;box-shadow:8px 0 28px rgba(0,0,0,.45);transition-delay:.04s}
+#sidewrap.tourx h6{opacity:1}
+#sidewrap.tourx .fd span,#sidewrap.tourx #nf span,#sidewrap.tourx #lpins .pt span,#sidewrap.tourx #lpins .pt .mu{opacity:1;transition-delay:.12s}
+#rwrap.tourx{z-index:94}
+#rwrap.tourx #rside{width:204px;box-shadow:-8px 0 28px rgba(0,0,0,.45);transition-delay:.04s}
+#rwrap.tourx #rl h6{opacity:1}
+#rwrap.tourx .fd span,#rwrap.tourx .rempty p,#rwrap.tourx .rempty button{opacity:1;transition-delay:.12s}
+#defst.okk{color:var(--acc)}
+/* ---- gradient kolorów: jedno pole kolorów na całym obramowaniu okna (v46) ---- */
+@property --pgC{syntax:'<color>';inherits:true;initial-value:#1b1816}
+:root{transition:--pgC .7s ease}
+/* #pgframe leży pod paskami: kolor motywu, a na nim kolor strony z maską „góra × lewy bok × prawy bok” – 0 przy krawędzi okna, 1 przy zawartości */
+@property --pgLW{syntax:'<length>';inherits:true;initial-value:52px}
+@property --pgRW{syntax:'<length>';inherits:true;initial-value:52px}
+#pgframe{position:fixed;inset:0;z-index:-1;pointer-events:none;display:none;background:var(--panel);--pgLW:var(--pgLB,52px);--pgRW:var(--pgRB,52px);
+  transition:--pgLW .28s cubic-bezier(.4,0,.2,1) .2s,--pgRW .28s cubic-bezier(.4,0,.2,1) .2s}
+/* gradient na górze rozsuwa się razem z panelami bocznymi (te same czasy i opóźnienia co #side i #rside), więc narożniki zostają spójne */
+body:has(#sidewrap:hover) #pgframe,body:has(#sidewrap.pin) #pgframe,body:has(#sidewrap.tourx) #pgframe{--pgLW:184px;transition-delay:.04s,.2s}
+body:has(#rwrap:hover) #pgframe,body:has(#rwrap.tourx) #pgframe{--pgRW:204px;transition-delay:.2s,.04s}
+body.hist-open:has(#rwrap:hover) #pgframe{--pgRW:var(--pgRB,52px)}
+body.na-fold #pgframe{transition-duration:0s,.28s}body.na-apps #pgframe{transition-duration:.28s,0s}body.na-fold.na-apps #pgframe{transition:none}
+#pgframe::before{content:"";position:absolute;inset:0;background:var(--pgC);
+  -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 var(--pgTH,84px)),linear-gradient(90deg,transparent 0,#000 var(--pgLW,52px),#000 calc(100% - var(--pgRW,52px)),transparent 100%);
+  mask-image:linear-gradient(180deg,transparent 0,#000 var(--pgTH,84px)),linear-gradient(90deg,transparent 0,#000 var(--pgLW,52px),#000 calc(100% - var(--pgRW,52px)),transparent 100%);
+  -webkit-mask-composite:source-in;mask-composite:intersect}
+body.pgb{background:transparent}
+body.pgb #pgframe{display:block}
+body.pgb #bar,body.pgb #tabrow,body.pgb #pins{background:transparent}
+body.pgb #tabrow,body.pgb #pins.has{border-bottom-color:transparent}
+/* paski boczne mają własne (nieprzezroczyste) tło, bo po rozwinięciu zachodzą na stronę; w stanie zwiniętym wyglądają jak pole #pgframe, a przy zawartości mają dokładnie kolor strony */
+body.pgb #side{background:linear-gradient(90deg,var(--panel) 0%,var(--pgC) 100%) 0 0/100% 100% no-repeat border-box;border-right-color:transparent}
+body.pgb #rside{background:linear-gradient(270deg,var(--panel) 0%,var(--pgC) 100%) 0 0/100% 100% no-repeat border-box;border-left-color:transparent}
+body.pgb:has(#right.open) #rside{background:linear-gradient(270deg,var(--panel) 0%,var(--bg) 100%) 0 0/100% 100% no-repeat border-box}   /* przy otwartym panelu asystenta prawy pasek graniczy z panelem, nie ze stroną */
+/* separator nad przyciskiem historii: ten sam wygląd co nad przyciskiem ustawień (symetryczne wygaszanie w widocznej części paska, także zwiniętego) */
+@property --rbw{syntax:'<length>';inherits:true;initial-value:27px}
+#rside{transition:width .28s cubic-bezier(.4,0,.2,1) .2s,box-shadow .28s .2s,--rbw .28s cubic-bezier(.4,0,.2,1) .2s}
+#rwrap:hover #rside,#rwrap.tourx #rside{--rbw:180px}
+body.hist-open #rwrap:hover #rside{--rbw:27px}
+#rb::before{left:auto;right:4px;width:var(--rbw)}

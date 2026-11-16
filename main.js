@@ -1,9 +1,14 @@
-const { app, BrowserWindow, nativeTheme, nativeImage, ipcMain, dialog, screen, net, shell } = require('electron');
+const { app, BrowserWindow, nativeTheme, nativeImage, ipcMain, dialog, screen, net, shell, webContents } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const ffm = require('./ffmpeg');
 const imp = require('./importer');
-const perms = require('./permissions'), adblock = require('./adblock'), vaultMod = require('./vault');
+const perms = require('./permissions'), adblock = require('./adblock'), vaultMod = require('./vault'), wl = require('./weblogin'), tbar = require('./taskbar'), adpage = require('./adblock-page'), db = require('./defaultbrowser'), pagecolor = require('./pagecolor');
+const { execFile } = require('child_process');
+// Uruchomienie z kodu zrodlowego (npm start, plik .bat, electron .): js/bundle.js jest plikiem GENEROWANYM (lezy w .gitignore, nie ma go w repozytorium),
+// wiec przy kazdym starcie skladamy go od nowa z src/js. Bez tego okno ladowaloby stary bundle.js z poprzedniej wersji, a proces glowny (main.js) byłby nowy -
+// funkcje wymagajace obu stron (np. okno incognito) przestawalyby dzialac. W instalatorze (app.isPackaged) bundle jest zlozony przy budowaniu i ten kod sie nie wykonuje.
+if (!app.isPackaged) { try { const r = require('./tools/bundle.js').build(); console.log('js/bundle.js zlozony ze zrodel: ' + r.files.length + ' plikow'); } catch (e) { console.error('skladanie js/bundle.js', e); } }
 nativeTheme.themeSource = 'dark';
 // Identyfikator przeglądarki jak w zwykłym Chromium: bez "Electron" i nazwy aplikacji. Ustawiony globalnie (a nie atrybutem useragent
 // na każdej karcie), bo nadpisanie UA na karcie wyłącza nagłówki Client Hints i navigator.userAgentData, a strona podająca się
@@ -23,6 +28,11 @@ const winOf = e => BrowserWindow.fromWebContents(e.sender);
 { const base = app.getPath('appData'), OLD = path.join(base, 'claude-browser'), NEW = path.join(base, 'arkana-browser');
   try { if (fs.existsSync(OLD) && !fs.existsSync(NEW)) { try { fs.renameSync(OLD, NEW); } catch { fs.cpSync(OLD, NEW, { recursive: true }); } } } catch (e) { console.error('migracja danych', e); }
   app.setPath('userData', NEW); }
+// Arkana jako przeglądarka domyślna: kliknięty w innym programie link (lub plik .html) startuje Arkanę z adresem w linii poleceń.
+// Normalne uruchomienie bez adresu nadal tworzy nową instancję z własnym profilem. Uruchomienie Z adresem, gdy Arkana już działa, przekazuje
+// adres działającej instancji (zdarzenie second-instance) i kończy się, zamiast otwierać kolejne okno z osobnym profilem.
+const startUrl = db.urlFromArgv(process.argv);
+if (!app.requestSingleInstanceLock({ url: startUrl }) && startUrl) { app.exit(0); process.exit(0); }
 const inst = require('./instance');
 const baseData = app.getPath('userData'), slot = inst.claimSlot(baseData);
 if (slot.n > 0) {
@@ -44,7 +54,34 @@ ipcMain.on('win-ctl', (e, a) => {
   if (a === 'min') w.minimize(); else if (a === 'max') (w.isMaximized() ? w.unmaximize() : w.maximize()); else if (a === 'close') w.close();
 });
 ipcMain.handle('win-state', e => { const w = winOf(e); return !!w && w.isMaximized(); });
-ipcMain.on('set-icon', (e, url) => { try { const w = winOf(e); if (w) w.setIcon(nativeImage.createFromDataURL(url)); } catch {} });
+// ---- ikona na pasku zadań w kolorach motywu (tło = kolor główny, symbol = akcent): rysuje ją okno (drawIcon), szczegóły przy applyTaskbar ----
+const icoTimers = new WeakMap();
+ipcMain.on('set-icon', (e, url, on) => {
+  const w = winOf(e); if (!w) return;
+  // opcja wyłączona: oryginalna ikona programu (wygląd bez zmian, kolor bazowy); włączona: ikona w kolorach motywu narysowana przez okno
+  let img; try { img = on === false && !incWins.has(w) ? baseIcon() : nativeImage.createFromDataURL(String(url)); if (!img || img.isEmpty()) return; w.setIcon(img); } catch { return; }
+  if (process.platform !== 'win32' || incWins.has(w)) return;   // okno incognito ma własną (szarą) ikonę okna, ale nie zmienia ikony grupy
+  clearTimeout(icoTimers.get(w));
+  icoTimers.set(w, setTimeout(() => { try {
+    if (w.isDestroyed()) return;
+    const want = on !== false;
+    for (const x of BrowserWindow.getAllWindows()) if (!incWins.has(x) && !x.isDestroyed()) { try { x.setIcon(img); } catch {} }   // wszystkie zwykłe okna naraz (zmiana działa od razu w obie strony)
+    // Przypięty skrót na pasku zadań ma ustaloną ikonę i Windows rysuje ją zamiast ikony okna – dlatego zmieniamy ikonę w samym skrócie (taskbar.js).
+    // Zmieniamy tylko ikonę istniejącego pliku .lnk (tryb „update”), nie usuwamy go i nie tworzymy od nowa; menu Start i pulpit zostają bez zmian.
+    const po = { shell, appData: app.getPath('appData'), exe: process.execPath, appPath: app.getAppPath(), packaged: app.isPackaged, fallback: ICON, notify: f => tbar.notifyShell(f, execFile) };
+    if (want) { const r = tbar.applyThemeIcon({ ...po, img, dir: path.join(baseData, 'icons') }); if (r.updated) console.log('ikona przypiętego skrótu zaktualizowana:', r.updated); }
+    else tbar.restoreIcon(po);
+  } catch (err) { console.error('ikona paska zadań', err); } }, 900));
+});
+// ---- logowanie Google / klucze dostępu (weblogin.js) ----
+ipcMain.on('web-cfg', e => { e.returnValue = { ...wl.pageCfg(), ...adpage.pageCfg(adblock.state.on) }; });   // uzupełnienie API Chrome i blokada kluczy dostępu dla skryptu karty
+ipcMain.on('web-cfg-set', (_e, c) => { wl.setCfg(c); });
+// ---- nowe okno / okno incognito ----
+ipcMain.on('new-win', (e, p) => {
+  const src = winOf(e); p = p || {};
+  const b = src ? (src.isMaximized() ? src.getNormalBounds() : src.getBounds()) : null;
+  createWindow({ state: p.state || null, inc: !!p.inc, x: b ? b.x + 32 : undefined, y: b ? b.y + 32 : undefined, w: b ? b.width : undefined, h: b ? b.height : undefined });
+});
 // pobieranie kursów walut (tylko wskazane hosty, przez proces główny – bez problemów z CORS)
 const HTTP_HOSTS = ['open.er-api.com', 'api.frankfurter.dev', 'translate.googleapis.com', 'api.mymemory.translated.net'];
 ipcMain.handle('changelog-get', () => {   // CHANGELOG.txt z folderu aplikacji, czytany przy każdym otwarciu panelu
@@ -97,7 +134,7 @@ ipcMain.on('detach', (e, p) => {                // oderwana karta / folder -> no
   const b = src.isMaximized() ? src.getNormalBounds() : src.getBounds();
   const wa = screen.getDisplayNearestPoint({ x: Math.round(p.x) + 100, y: Math.round(p.y) + 40 }).workArea;
   const x = Math.min(Math.max(Math.round(p.x), wa.x), wa.x + wa.width - 200), y = Math.min(Math.max(Math.round(p.y), wa.y), wa.y + wa.height - 120);
-  createWindow({ state: p.state, x, y, w: b.width, h: b.height });
+  createWindow({ state: p.state, inc: incWins.has(src), x, y, w: b.width, h: b.height });   // karta oderwana od okna incognito zostaje w incognito
 });
 
 // ---- przenoszenie karty między oknami: okno pod kursorem wybieramy wg kolejności ostatniej aktywności ----
@@ -108,6 +145,7 @@ function hitWindow(src, sx, sy, zone) {
   const zh = zone > 0 && zone < 400 ? zone : XD_ZONE;   // renderer podaje rzeczywistą wysokość pasków
   for (const w of mru) {
     if (w === src || w.isDestroyed() || w.isMinimized() || !w.isVisible()) continue;
+    if (incWins.has(w) !== incWins.has(src)) continue;   // karty nie przechodzą między zwykłym oknem a incognito (inne ciasteczka i sesja)
     const b = w.getContentBounds();
     if (sx >= b.x && sx <= b.x + b.width && sy >= b.y && sy <= b.y + zh) return { w, cx: sx - b.x };   // pasek tytułu + pasek kart
   }
@@ -154,6 +192,38 @@ const NAMES = { Comma: ',', Period: '.', Slash: '/', Semicolon: ';', Quote: "'",
 const keyLabel = c => /^Key[A-Z]$/.test(c) ? c[3] : /^Digit\d$/.test(c) ? c[5] : NAMES[c] || c;
 const isMod = c => /^(Control|Shift|Alt|Meta)(Left|Right)$/.test(c);
 
+const runAction = (win, a) => { if (a === 'ui-devtools') win.webContents.toggleDevTools(); else win.webContents.send('shortcut', a); };
+
+// ---- przyciski myszy w skrótach: środkowy i boczne (dowolna liczba); lewy i prawy są zablokowane ----
+// Zapis: [Ctrl+][Alt+][Shift+]MouseN, gdzie N = 3 (środkowy), 4 (boczny „wstecz”), 5 (boczny „dalej”), 6… (kolejne przyciski myszy).
+// Modyfikatory są opcjonalne: przypisanie samego „Mouse4” działa bez żadnego klawisza, a „Ctrl+Mouse4” tylko z wciśniętym Ctrl.
+const MOUSE_RE = /^(?:(Ctrl)\+)?(?:(Alt)\+)?(?:(Shift)\+)?Mouse(\d{1,2})$/;
+function findMouseBinding(m) {
+  const n = m && Number.isInteger(m.n) ? m.n : 0; if (n < 3 || n > 64) return null;
+  for (const [a, str] of Object.entries(bindings)) {
+    const x = MOUSE_RE.exec(str || '');
+    if (x && +x[4] === n && !!x[1] === !!m.ctrl && !!x[2] === !!m.alt && !!x[3] === !!m.shift) return a;
+  }
+  return null;
+}
+const lastMouse = new Map();   // okno:przycisk -> kiedy i skąd (mysz / polecenie systemu) ostatnio uruchomiliśmy skrót
+// ten sam fizyczny klik boczny może dojść dwiema drogami (zdarzenie myszy i polecenie aplikacji Windows) – drugiej nie wykonujemy
+function mouseFire(win, n, src, a) {
+  const k = win.id + ':' + n, now = Date.now(), l = lastMouse.get(k); lastMouse.set(k, { t: now, src });
+  if (l && l.src !== src && now - l.t < 400) return;
+  runAction(win, a);
+}
+// strona (karta lub okno programu) pyta synchronicznie, czy kliknięty przycisk jest przypisany; jeśli tak, skrót jest wykonywany od razu
+ipcMain.on('mouse-key', (e, m) => {
+  e.returnValue = false;
+  try {
+    const win = BrowserWindow.fromWebContents(e.sender.hostWebContents || e.sender);
+    if (!win || pausedW.has(win)) return;                  // trwa nagrywanie skrótu: klik obsługuje okno ustawień
+    const a = findMouseBinding(m); if (!a) return;
+    e.returnValue = true; mouseFire(win, m.n, 'mouse', a);
+  } catch {}
+});
+
 function onKey(e, i, win) {
   if (pausedW.has(win) || !i.code) return;
   const down = downOf(win);
@@ -169,7 +239,7 @@ function onKey(e, i, win) {
     if (p.length === cur.size && p.every(x => cur.has(x))) {
       e.preventDefault();
       if (i.isAutoRepeat) return;
-      if (a === 'ui-devtools') win.webContents.toggleDevTools(); else win.webContents.send('shortcut', a);
+      runAction(win, a);
       return;
     }
   }
@@ -177,14 +247,55 @@ function onKey(e, i, win) {
 
 // Przypięty skrót na pasku zadań ma zachować ikonę Arkany (bez tego Windows bierze ikonę z electron.exe, gdy aplikacja działa z kodu źródłowego).
 // Po tej zmianie przypięty wcześniej skrót trzeba odpiąć i przypiąć ponownie.
+// Ikona na pasku zadań (sprawdzone na Windows 11, 14.11.2026):
+// - okno z tym samym identyfikatorem co skróty instalatora (com.arkana.browser) dostaje ikonę ze skrótu – stałą, niezależną od okna;
+// - okno z własnym identyfikatorem i bez zapisanej ikony „relaunch” pokazuje ikonę okna (win.setIcon), która zmienia się na żywo.
+// Identyfikator okna jest ustalany przy jego tworzeniu i Windows ignoruje jego zmianę w trakcie działania, dlatego okna ZAWSZE dostają ten sam
+// własny identyfikator (THEMED_ID – albo identyfikator przypiętego skrótu, żeby nie powstał drugi przycisk), niezależnie od opcji
+// „Ikona aplikacji w kolorach motywu”. Wygląd ikony zależy wtedy tylko od tego, co wyślemy w set-icon: przy włączonej opcji ikona w kolorach motywu,
+// przy wyłączonej – oryginalna ikona programu (icon.ico). Dzięki temu przełączanie działa od razu w obie strony, bez restartu.
+// Proces zostaje przy com.arkana.browser (powiadomienia systemowe).
+const THEMED_ID = 'com.arkana.browser.themed';
+try { fs.unlinkSync(path.join(baseData, 'icons', 'static-icon')); } catch {}   // plik z poprzednich wersji (blokował powrót do ikony w kolorach motywu)
+// oryginalna ikona programu (ten sam wygląd co plik .exe i skrót); null, gdy nie da się jej wczytać
+function baseIcon() {
+  for (const f of [ICON, path.join(__dirname, 'icon.png')]) { try { const i = nativeImage.createFromPath(f); if (i && !i.isEmpty()) return i; } catch {} }
+  try { const i = nativeImage.createFromBuffer(fs.readFileSync(path.join(__dirname, 'icon.png'))); if (!i.isEmpty()) return i; } catch {}
+  return null;
+}
+function pinnedAumid() {
+  try { const p = tbar.findPinned({ shell, appData: app.getPath('appData'), exe: process.execPath, appPath: app.getAppPath(), packaged: app.isPackaged }).find(x => x.aumid); return p ? p.aumid : ''; } catch { return ''; }
+}
 function applyTaskbar(win) {
   if (process.platform !== 'win32') return;
   try {
-    const exe = process.execPath, rel = app.isPackaged ? '"' + exe + '"' : '"' + exe + '" "' + app.getAppPath() + '"';
-    win.setAppDetails({ appId: 'com.arkana.browser', appIconPath: app.isPackaged ? exe : ICON, appIconIndex: 0, relaunchCommand: rel, relaunchDisplayName: 'Arkana Browser' });
+    const clear = { appIconPath: '', relaunchCommand: '', relaunchDisplayName: '' };   // puste = bez ikony „relaunch”, Windows pokazuje ikonę okna
+    if (incWins.has(win)) { win.setAppDetails({ appId: 'com.arkana.browser.incognito', ...clear }); return; }   // incognito: osobny przycisk z szarą ikoną
+    // przypięty skrót Arkany: okno musi mieć jego identyfikator, żeby trafić na ten sam przycisk (inaczej obok przypiętego pojawia się drugi);
+    // ikonę przycisku zmieniamy wtedy w samym skrócie (taskbar.js). Bez przypięcia – własny identyfikator i ikona okna na żywo.
+    win.setAppDetails({ appId: pinnedAumid() || THEMED_ID, ...clear });   // puste = usuń ikonę „relaunch”; ikonę okna ustawia set-icon
   } catch (e) { console.error('setAppDetails', e); }
 }
-const GUEST_PRELOAD = path.join(__dirname, 'wv-preload.js');
+// ---- sesje: nagłówki (logowanie Google, Client Hints), uprawnienia i blokowanie reklam ----
+const sesReady = new WeakSet();
+let permStore = null, permAsk = null;
+function prepSession(ses, opts = {}) {
+  if (!ses || sesReady.has(ses)) return; sesReady.add(ses);
+  try { ses.webRequest.onBeforeSendHeaders((d, cb) => { try { cb({ requestHeaders: wl.rewriteHeaders(d.url, d.requestHeaders) }); } catch { cb({}); } }); } catch (e) { console.error('nagłówki', e); }
+  try { if (permStore) perms.install(ses, permStore, permAsk); } catch (e) { console.error('uprawnienia', e); }
+  if (opts.adblock) try { adblock.install(ses); } catch (e) { console.error('reklamy', e); }
+}
+// incognito: wspólna sesja w pamięci dla wszystkich otwartych okien incognito; po zamknięciu ostatniego dane znikają
+const incWins = new Set();
+let incPart = null;
+function incPartition() { if (!incPart) incPart = 'arkana-incognito-' + Date.now().toString(36); return incPart; }
+function incClosed(win) {
+  incWins.delete(win);
+  if (incWins.size || !incPart) return;
+  const p = incPart; incPart = null;
+  try { require('electron').session.fromPartition(p).clearStorageData(); } catch {}
+}
+const GUEST_PRELOAD = path.join(__dirname, 'wv-preload.js'), SHIM_PRELOAD = path.join(__dirname, 'wv-shim.js');
 function createWindow(o = {}) {
   const win = new BrowserWindow({
     width: o.w || 1360, height: o.h || 880, x: o.x, y: o.y, title: 'Arkana Browser', backgroundColor: '#16120f',
@@ -192,22 +303,41 @@ function createWindow(o = {}) {
     ...(fs.existsSync(ICON) ? { icon: ICON } : {}),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), webviewTag: true, contextIsolation: true }
   });
-  applyTaskbar(win);
   const id = win.webContents.id;
-  if (o.state) inits.set(id, { secondary: true, state: o.state });
+  if (o.inc) { incWins.add(win); win.on('closed', () => incClosed(win)); }
+  applyTaskbar(win);
+  if (o.state || o.inc) inits.set(id, { secondary: true, state: o.state || null, inc: !!o.inc, part: o.inc ? incPartition() : '' });
   win.setMenu(null);
   win.on('maximize', () => win.webContents.send('win-state', true));
   win.on('unmaximize', () => win.webContents.send('win-state', false));
   win.on('blur', () => downOf(win).clear());
+  // boczne przyciski myszy Windows zgłasza też jako polecenie aplikacji (wstecz/dalej); gdy przypisano Mouse4/Mouse5, zastępujemy nim domyślne działanie
+  // (uwaga: to samo polecenie wysyłają klawisze multimedialne „Wstecz/Dalej” w przeglądarce na niektórych klawiaturach)
+  win.on('app-command', (e, cmd) => {
+    const n = cmd === 'browser-backward' ? 4 : cmd === 'browser-forward' ? 5 : 0; if (!n || pausedW.has(win)) return;
+    const a = findMouseBinding({ n, ctrl: false, alt: false, shift: false }); if (!a) return;
+    e.preventDefault(); mouseFire(win, n, 'app', a);
+  });
   const handle = (e, i) => onKey(e, i, win);
   win.webContents.on('before-input-event', handle);
   win.webContents.on('will-attach-webview', (_e, wp, params) => {   // karty dostają tylko nasz skrypt wp-preload; panel asystenta (partycja claude) żadnego
     delete wp.preloadURL; wp.nodeIntegration = false; wp.nodeIntegrationInSubFrames = false; wp.contextIsolation = true;
-    if (params.partition === 'persist:claude') delete wp.preload; else wp.preload = GUEST_PRELOAD;
+    wp.preload = params.partition === 'persist:claude' ? SHIM_PRELOAD : GUEST_PRELOAD;   // panel asystenta: tylko uzupełnienie API (logowanie Google), bez haseł
+    // okno incognito: karty tylko w sesji incognito w pamięci (ustala to proces główny, strona okna nie może tego zmienić)
+    if (incWins.has(win) && params.partition !== 'persist:claude') { const p = incPartition(); wp.partition = p; params.partition = p; prepSession(require('electron').session.fromPartition(p), { adblock: true }); }
   });
   win.webContents.on('did-attach-webview', (_e, wc) => {
     wc.on('before-input-event', handle); // skróty działają też, gdy fokus jest na stronie
-    wc.setWindowOpenHandler(({ url }) => { win.webContents.send('open-tab', url); return { action: 'deny' }; });
+    // okienka logowania („Zaloguj przez Google/Facebook…”) muszą zostać okienkami, bo wynik wracają do strony, która je otworzyła;
+    // pozostałe linki otwierające nowe okno trafiają do nowej karty
+    wc.setWindowOpenHandler(({ url, disposition, features }) => {
+      if (disposition === 'new-window' && /^https?:/i.test(url) && (wl.isGoogleAuth(url) || /width|height|popup/i.test(features || ''))) {
+        return { action: 'allow', outlivesOpener: false, overrideBrowserWindowOptions: { parent: win, autoHideMenuBar: true, backgroundColor: '#ffffff', ...(fs.existsSync(ICON) ? { icon: ICON } : {}),
+          webPreferences: { preload: GUEST_PRELOAD, contextIsolation: true, nodeIntegration: false, sandbox: true } } };
+      }
+      win.webContents.send('open-tab', url); return { action: 'deny' };
+    });
+    wc.on('did-create-window', pw => { try { pw.setMenu(null); pw.webContents.on('before-input-event', handle); pw.webContents.setWindowOpenHandler(({ url }) => { win.webContents.send('open-tab', url); return { action: 'deny' }; }); } catch {} });
   });
   mru.unshift(win);
   win.on('focus', () => { const i = mru.indexOf(win); if (i > 0) { mru.splice(i, 1); mru.unshift(win); } });
@@ -217,22 +347,71 @@ function createWindow(o = {}) {
 }
 
 app.whenReady().then(() => {
-  // zabezpieczenie: gdyby Client Hints zawierały markę "Electron", usuwamy ją z nagłówków (domyślna sesja i panel asystenta)
-  try {
-    const { session } = require('electron'), scrub = d => { const h = d.requestHeaders; for (const k of Object.keys(h)) if (/^sec-ch-ua(-full-version-list)?$/i.test(k) && /electron/i.test(h[k])) h[k] = h[k].replace(/"Electron";v="[^"]*",?\s*/gi, '').replace(/,\s*$/, ''); return { requestHeaders: h }; };
-    for (const ses of [session.defaultSession, session.fromPartition('persist:claude')]) ses.webRequest.onBeforeSendHeaders((d, cb) => cb(scrub(d)));
-  } catch (e) { console.error('client-hints', e); }
+  // nagłówki (logowanie Google, marka "Electron" w Client Hints), zgody stron i blokowanie reklam: domyślna sesja i panel asystenta
   try {
     const { session, safeStorage } = require('electron'), dir = app.getPath('userData');
-    const store = new perms.Store(path.join(dir, 'permissions.json')), ask = perms.broker(ipcMain, store);
-    for (const ses of [session.defaultSession, session.fromPartition('persist:claude')]) perms.install(ses, store, ask);
-    adblock.install(session.defaultSession);   // panel asystenta zostaje bez filtrowania
+    permStore = new perms.Store(path.join(dir, 'permissions.json')); permAsk = perms.broker(ipcMain, permStore);
+    prepSession(session.defaultSession, { adblock: true });
+    prepSession(session.fromPartition('persist:claude'));   // panel asystenta zostaje bez filtrowania reklam
     ipcMain.on('adblock-set', (_e, on) => { adblock.state.on = !!on; });
     ipcMain.handle('adblock-stats', () => ({ on: adblock.state.on, count: adblock.state.count }));
     vaultMod.register(ipcMain, new vaultMod.Vault(path.join(dir, 'vault.bin'), vaultMod.safeCipher(safeStorage)));
   } catch (e) { console.error('prywatność', e); }
   // automatyczne aktualizacje: tylko pierwsza instancja (kolejne nie mogą jednocześnie pobierać do tego samego folderu)
   try { require('./updater').init({ app, ipcMain, BrowserWindow, shell, net, isSecondary: id => inits.has(id), primary: slot.n === 0 }); } catch (e) { console.error('updater', e); }
-  createWindow();
+  const first = createWindow();
+  if (startUrl) first.webContents.once('did-finish-load', () => setTimeout(() => { try { first.webContents.send('open-tab', startUrl); } catch {} }, 700));
+  refreshBrowserRegistration();
 });
+// adres przekazany przez drugi proces Arkany (kliknięty link w innym programie): do ostatnio używanego zwykłego okna, w nowej karcie
+function openUrlInApp(u) {
+  if (!/^(https?|file):\/\//i.test(String(u || '')) || String(u).length > 8192) return;
+  const w = mru.find(x => !x.isDestroyed() && !incWins.has(x)) || mru.find(x => !x.isDestroyed());
+  if (!w) { const n = createWindow(); n.webContents.once('did-finish-load', () => setTimeout(() => { try { n.webContents.send('open-tab', u); } catch {} }, 700)); return; }
+  if (w.isMinimized()) w.restore(); w.show(); w.focus(); w.webContents.send('open-tab', u);
+}
+app.on('second-instance', (_e, argv, _cwd, data) => { openUrlInApp((data && data.url) || db.urlFromArgv(argv)); });
+
+// ---- kolory krawędzi otwartej strony (przejście kolorów interfejsu i strony; pagecolor.js) ----
+// Okno prosi o zrzut aktywnej karty (tylko własnej: wc.hostWebContents musi być nadawcą); zrzut zmniejszamy i liczymy dominujące kolory krawędzi.
+ipcMain.handle('page-colors', async (e, id) => {
+  try {
+    if (!Number.isInteger(id)) return null;
+    const wc = webContents.fromId(id); if (!wc || wc.isDestroyed() || wc.hostWebContents !== e.sender) return null;
+    const img = await wc.capturePage(); if (!img || img.isEmpty()) return null;
+    const s = img.getSize(), small = s.width > 240 ? img.resize({ width: 240, quality: 'good' }) : img, z = small.getSize();
+    return pagecolor.edgeColors(small.toBitmap(), z.width, z.height);
+  } catch { return null; }
+});
+
+// ---- przeglądarka domyślna (szczegóły w defaultbrowser.js) ----
+const dbOpts = () => ({ exe: process.execPath, appPath: app.getAppPath(), packaged: app.isPackaged, icon: ICON, execFile, description: 'Arkana Browser' });
+const dbMarker = path.join(baseData, 'defbrowser.json');
+const openDefaultApps = async () => {   // Windows 11 otwiera od razu stronę tej aplikacji, starsze wersje ogólną listę domyślnych aplikacji
+  for (const u of ['ms-settings:defaultapps?registeredAppUser=' + encodeURIComponent(db.APP_NAME), 'ms-settings:defaultapps']) { try { await shell.openExternal(u); return true; } catch {} }
+  return false;
+};
+ipcMain.handle('default-browser', async (e, op) => {
+  if (inits.has(e.sender.id)) return { supported: false };
+  if (process.platform !== 'win32') {
+    if (op === 'set') { try { app.setAsDefaultProtocolClient('http'); app.setAsDefaultProtocolClient('https'); } catch {} }
+    return { supported: true, win: false, registered: true, isDefault: app.isDefaultProtocolClient('http') && app.isDefaultProtocolClient('https') };
+  }
+  let ok = true;
+  if (op === 'set') {
+    ok = await db.register(dbOpts());
+    if (ok) { try { fs.writeFileSync(dbMarker, JSON.stringify({ ver: app.getVersion(), exe: process.execPath })); } catch {} await openDefaultApps(); }
+  } else if (op === 'open') ok = await openDefaultApps();
+  else if (op === 'unset') { ok = await db.unregister(dbOpts()); try { fs.unlinkSync(dbMarker); } catch {} }
+  return { supported: true, win: true, ok, ...(await db.status(dbOpts())) };
+});
+// po aktualizacji lub przeniesieniu programu odświeżamy rejestrację (ścieżka do exe mogła się zmienić), ale tylko jeśli użytkownik wcześniej o nią poprosił
+async function refreshBrowserRegistration() {
+  if (process.platform !== 'win32' || slot.n !== 0) return;
+  try {
+    const m = JSON.parse(fs.readFileSync(dbMarker, 'utf8'));
+    if (m.exe === process.execPath && m.ver === app.getVersion()) return;
+    if (await db.register(dbOpts())) fs.writeFileSync(dbMarker, JSON.stringify({ ver: app.getVersion(), exe: process.execPath }));
+  } catch {}
+}
 app.on('window-all-closed', () => app.quit());

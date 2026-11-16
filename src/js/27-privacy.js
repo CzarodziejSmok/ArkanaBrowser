@@ -57,7 +57,13 @@ function renderPrivTab(noRefresh){
   const sc=$('set').scrollTop, A=S.settings.adblock, P=S.settings.pw;
   const perms=PRIV.perms.length?PRIV.perms.map(p=>`<div class="pvr"><b>${esc(hostOf(p.origin))}</b><div class="pvc">${Object.keys(p.perms).map(k=>`<span class="pvchip ${p.perms[k]}"><i>${p.perms[k]==='allow'?'✓':'✕'}</i>${esc(permName(k))}<button data-pdel="${esc(p.origin)}" data-k="${esc(k)}" title="Usuń decyzję">×</button></span>`).join('')}</div></div>`).join(''):'<p class="hint">Brak zapamiętanych decyzji.</p>';
   const logins=!PRIV.avail?'<p class="hint warn">Szyfrowanie systemowe jest niedostępne. Sejf haseł nie działa.</p>':PRIV.logins.length?PRIV.logins.map(l=>`<div class="pvr"><b>${esc(hostOf(l.origin))}</b><span class="pvu">${esc(l.user||t('brak nazwy'))}${PRIV.rev&&PRIV.rev.id===l.id?` · <code>${esc(PRIV.rev.pass)}</code>`:''}</span><div class="pvb"><button data-vrev="${l.id}">Pokaż</button><button data-vcopy="${l.id}">Kopiuj</button><button data-vdel="${l.id}">Usuń</button></div></div>`).join(''):'<p class="hint">Brak zapisanych haseł.</p>';
+  const L=S.settings.login;
   $('set').innerHTML=`<div class="sh"><b>⚙ Ustawienia</b><button id="sx">x</button></div>${tabsHtml()}
+  <h5>LOGOWANIE NA STRONACH</h5>
+  <label class="ck"><input type="checkbox" id="gfix" ${L.gfix?'checked':''}><span class="tg"></span>Zgodność z logowaniem do konta Google</label>
+  <p class="hint">Google blokuje logowanie w przeglądarkach, które nie wyglądają jak Chrome („Ta przeglądarka lub aplikacja może nie być bezpieczna”). Ta opcja dodaje na stronach elementy, które ma Chrome, a których brakuje Arkanie. Wyłącz ją tylko wtedy, gdy przez nią jakaś strona nie działa. Zmiana działa po odświeżeniu strony.</p>
+  <label class="ck"><input type="checkbox" id="pkon" ${L.passkeys?'checked':''}><span class="tg"></span>Pozwalaj stronom używać kluczy dostępu (Windows Hello)</label>
+  <p class="hint">Gdy ta opcja jest wyłączona, strony nie mogą otworzyć systemowego okna „Zaloguj się przy użyciu klucza dostępu” i proponują logowanie hasłem. Zmiana działa po odświeżeniu strony.</p>
   <h5>BLOKOWANIE REKLAM</h5>
   <label class="ck"><input type="checkbox" id="abon" ${A.on?'checked':''}><span class="tg"></span>Blokuj reklamy i śledzące skrypty</label>
   <p class="hint">Blokuje żądania do znanych sieci reklamowych i trackerów, gdy pochodzą z innej witryny. To proste filtrowanie po domenach: nie usuwa reklam wbudowanych w stronę (np. w YouTube).</p>
@@ -72,6 +78,7 @@ function renderPrivTab(noRefresh){
 }
 document.addEventListener('change',e=>{
   if(e.target.id==='abon'){ S.settings.adblock.on=e.target.checked; try{ window.api.adblockSet(e.target.checked); }catch{} save(); }
+  else if(e.target.id==='gfix'||e.target.id==='pkon'){ S.settings.login[e.target.id==='gfix'?'gfix':'passkeys']=e.target.checked; try{ window.api.webCfg(S.settings.login); }catch{} save(); }
   else if(e.target.id==='pwon'){ S.settings.pw.on=e.target.checked; save(); if(!e.target.checked) pwHide(); }
 });
 document.addEventListener('click',async e=>{
@@ -87,3 +94,4 @@ document.addEventListener('click',async e=>{
   renderPrivTab(true);
 });
 try{ window.api.adblockSet(S.settings.adblock.on); }catch{}
+try{ window.api.webCfg(S.settings.login); }catch{}

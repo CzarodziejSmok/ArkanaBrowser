@@ -1,6 +1,6 @@
 {
   "name": "arkana-browser",
-  "version": "39.0.0",
+  "version": "47.0.0",
   "description": "Przeglądarka z podręcznością i customizajcą w myśli.",
   "author": "CzarodziejSmok",
   "license": "MIT",
@@ -40,8 +40,14 @@
       "importer.js",
       "permissions.js",
       "adblock.js",
+      "adblock-page.js",
+      "taskbar.js",
+      "defaultbrowser.js",
+      "pagecolor.js",
       "vault.js",
+      "weblogin.js",
       "wv-preload.js",
+      "wv-shim.js",
       "index.html",
       "css/**/*",
       "js/preboot.js",
@@ -75,7 +81,8 @@
       "deleteAppDataOnUninstall": false,
       "installerIcon": "icon.ico",
       "uninstallerIcon": "icon.ico",
-      "installerHeaderIcon": "icon.ico"
+      "installerHeaderIcon": "icon.ico",
+    "include": "build/installer.nsh"
     },
     "publish": [
       {

@@ -1,6 +1,6 @@
 'use strict';
 // Blokowanie reklam i śledzenia: lista domen sieci reklamowych i trackerów, blokowane tylko żądania z innych witryn (trzecich stron).
-// To proste filtrowanie po domenach, nie zastępuje uBlock Origin: nie usuwa reklam spod adresu strony (np. reklam w YouTube) ani elementów strony.
+// To filtrowanie po domenach (plus kilka ścieżek reklamowych YouTube). Reklamy serwowane spod adresu samej strony (wideo w YouTube) obsługuje adblock-page.js.
 const HOSTS = `doubleclick.net googlesyndication.com googleadservices.com googletagservices.com adservice.google.com 2mdn.net adnxs.com adsrvr.org adform.net adition.com
 criteo.com criteo.net taboola.com outbrain.com rubiconproject.com pubmatic.com openx.net casalemedia.com indexww.com amazon-adsystem.com smartadserver.com teads.tv
 sharethrough.com mgid.com revcontent.com zemanta.com yieldmo.com 33across.com lijit.com sovrn.com bidswitch.net contextweb.com advertising.com adcolony.com applovin.com
@@ -10,8 +10,18 @@ scorecardresearch.com quantserve.com quantcount.com hotjar.com hotjar.io mousefl
 analytics.twitter.com ads.twitter.com static.ads-twitter.com ads.linkedin.com px.ads.linkedin.com snap.licdn.com ads.pinterest.com analytics.tiktok.com ads.tiktok.com
 business-api.tiktok.com tr.snapchat.com sc-static.net outbrainimg.com taboolasyndication.com tynt.com bounceexchange.com ml314.com adsystem.com adkernel.com
 yadro.ru top-fwz1.mail.ru ad.mail.ru betrad.com evidon.com pippio.com tapad.com turn.com tidaltv.com spotxchange.com springserve.com stickyadstv.com freewheel.tv
-innovid.com undertone.com yieldlab.net adscale.de nexage.com onetag-sys.com id5-sync.com liadm.com permutive.com connatix.com cxense.com media6degrees.com`.split(/\s+/).filter(Boolean);
+innovid.com undertone.com yieldlab.net adscale.de nexage.com onetag-sys.com id5-sync.com liadm.com permutive.com connatix.com cxense.com media6degrees.com
+popads.net propellerads.com exoclick.com juicyads.com trafficjunky.com clickadu.com hilltopads.net adskeeper.com richpush.co onclkds.com adsterra.com highperformanceformat.com
+ad-delivery.net pubmine.com ezoic.net ezodn.com ezoic.com mediavine.com adthrive.com smaato.net inmobi.com vungle.com chartboost.com ironsrc.com supersonicads.com mopub.com
+liftoff.io rtbhouse.com sascdn.com adnami.io adblade.com content.ad nativeads.com revive-adserver.net monetixads.com bidr.io lkqd.net gumgum.com triplelift.com
+sonobi.com 1rx.io eqads.com adhigh.net adx.ws clickaine.com ad-score.com a-ads.com cpmstar.com zedo.com tribalfusion.com`.split(/\s+/).filter(Boolean);
 const SET = new Set(HOSTS);
+// YouTube: reklamy i śledzenie reklam idą spod adresu samego serwisu (tego filtr „tylko inne witryny” nie łapie), więc blokujemy wybrane ścieżki
+const YT_HOST = /(^|\.)youtube\.com$/;
+const YT_PATHS = [/^\/pagead\//, /^\/api\/stats\/ads/, /^\/pcs\/activeview/, /^\/get_midroll_/, /^\/youtubei\/v1\/player\/ad_break/];
+function pathBlocked(url) {
+  try { const x = new URL(url); return YT_HOST.test(x.hostname) && YT_PATHS.some(r => r.test(x.pathname)); } catch { return false; }
+}
 const SLD = new Set(['co', 'com', 'org', 'net', 'gov', 'edu', 'ac']);
 
 function hostBlocked(host) {
@@ -27,6 +37,7 @@ const hostOf = u => { try { return new URL(u).hostname; } catch { return ''; } }
 // czy to żądanie powinno zostać zablokowane
 function shouldBlock(url, pageUrl, resourceType) {
   if (resourceType === 'mainFrame') return false;
+  if (pathBlocked(url)) return true;
   const h = hostOf(url); if (!h || !hostBlocked(h)) return false;
   const ph = hostOf(pageUrl); return !!ph && regDomain(ph) !== regDomain(h);
 }
@@ -39,4 +50,4 @@ function install(ses) {
     cb({});
   });
 }
-module.exports = { install, state, shouldBlock, hostBlocked, regDomain, HOSTS };
+module.exports = { install, state, shouldBlock, hostBlocked, regDomain, pathBlocked, HOSTS };

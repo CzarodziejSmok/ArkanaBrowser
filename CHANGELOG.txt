@@ -784,3 +784,115 @@ v39 - uprawnienia stron, hasła, blokowanie reklam, narzędzia strony, podział 
 - Ikona przypiętego skrótu na pasku zadań zachowuje ikonę Arkany (odepnij i przypnij ponownie).
 - Kod podzielony na moduły (src/js, css/app.css, osobne pliki procesu głównego); aplikacja ładuje
   zbudowany js/bundle.js. Dodana polityka CSP (bez skryptów wbudowanych), izolacja kart i testy (npm test).
+
+
+==========================================================================
+v40 - Logowanie Google, okna incognito, przypięte karty po lewej
+==========================================================================
+- Naprawa logowania do konta Google („Ta przeglądarka lub aplikacja może nie być bezpieczna”): na stronach logowania Google Arkana przedstawia się jako Firefox
+- Strony nie otwierają już systemowego okna „Zaloguj się przy użyciu klucza dostępu” (opcja w Prywatności)
+- Okienka logowania „Zaloguj przez Google/Facebook” działają jako okienka
+- Okna incognito: menu ⋮, Ctrl+Shift+I, otwieranie karty lub folderu w incognito, własny motyw i logo
+- Nowe okno (Ctrl+N)
+- Przypięte karty mogą być na lewym pasku pod folderami
+- Przeciągnięta karta wskakuje na pasek przypiętych i z powrotem
+- Paski przewijania przy wielu folderach i przypiętych kartach
+- Ikona na pasku zadań znowu zmienia kolory razem z motywem
+
+
+==========================================================================
+v40.1 - Naprawa logowania Google, kolorowa ikona, strony przypięte wszędzie
+==========================================================================
+- Naprawa logowania do konta Google: Arkana uzupełnia na stronach elementy, które ma Chrome (window.chrome, navigator.share)
+- Usunięto podawanie się za Firefoksa (nie pomagało)
+- Ikona na pasku zadań znów zmienia kolory razem z motywem (opcja w Interfejsie)
+- Okna incognito mają osobny przycisk na pasku zadań
+- Strony przypięte we wszystkich folderach: zawsze widoczne, karta nie zamyka się przy zmianie folderu
+
+
+==========================================================================
+v40.2 - Przycisk „+” przy kartach, ikona przypiętego skrótu, blokowanie reklam w YouTube
+==========================================================================
+- Przycisk nowej karty stoi zaraz za ostatnią kartą (bez kart – przy lewej krawędzi paska)
+- Ikona przypiętej Arkany na pasku zadań znów zmienia kolor razem z motywem
+- Blokowanie reklam w YouTube: czyszczenie odpowiedzi odtwarzacza, pomijanie reklam, usuwanie okna o blokerach
+- Więcej domen reklamowych i chowanie pustych miejsc po reklamach na innych stronach
+
+
+==========================================================================
+v41 - Poradnik po interfejsie
+==========================================================================
+- Przy pierwszym uruchomieniu Arkana pokazuje krokowy poradnik po interfejsie: podświetla kolejne elementy, przyciemnia resztę i opisuje, do czego służą
+- Okno poradnika pokazuje numer kroku i ma opcję pominięcia całości; obsługa klawiaturą (strzałki, Enter, Esc)
+- Poradnik pokazuje się samoczynnie tylko raz; można go uruchomić ponownie w Ustawienia → System → Poradnik
+- Teksty poradnika przetłumaczone na wszystkie języki interfejsu
+ArkanaBrowser 41.0.0
+
+
+==========================================================================
+v42 - Przeglądarka domyślna i przyciski myszy w skrótach
+==========================================================================
+- Ustawienia → System: przycisk „Ustaw Arkanę jako domyślną” rejestruje Arkanę w Windows jako przeglądarkę i otwiera Ustawienia Windows; pokazuje, czy Arkana jest domyślna
+- Linki i pliki .html otwierane z innych programów trafiają do nowej karty działającej Arkany
+- Skróty: można przypisać środkowy i dowolne boczne przyciski myszy (lewy i prawy są zablokowane)
+- Przycisk myszy działa bez klawiszy; opcjonalnie można dodać Ctrl, Alt lub Shift
+- Przypisane kliknięcie nie trafia do strony ani nie cofa jej historii
+
+
+==========================================================================
+v42.1 - Naprawa aktualizacji w zainstalowanej wersji
+==========================================================================
+- Naprawiono komunikat „Repozytorium aktualizacji nie jest skonfigurowane” w wersji zainstalowanej z instalatora
+- Repozytorium wydań jest ustalane z kilku źródeł, więc sprawdzanie aktualizacji działa niezależnie od sposobu uruchomienia
+
+
+==========================================================================
+v42.2 - Naprawa ikony na pasku zadań
+==========================================================================
+- Po wyłączeniu opcji „Ikona aplikacji w kolorach motywu” wraca oryginalna ikona Arkany (zmienia się tylko kolor, nie wygląd)
+- Ponowne włączenie opcji od razu przywraca kolory motywu, bez restartu
+- Dotyczy także ikony przypiętej do paska zadań; okna incognito zachowują szarą ikonę
+
+
+==========================================================================
+v43 - Okno incognito: nowy napis, szarość, spokojniejsze tło
+==========================================================================
+- Napis „Incognito” z własnych, grubych liter: „in” białe, „cognito” wyraźnie szare
+- Okno incognito jest bardziej wyszarzałe, a efekty tła płyną wyraźnie wolniej
+- Karty w oknie incognito pokazują tylko ikonę incognito (bez ikony strony i iskry)
+
+
+==========================================================================
+v44 - Napis „inCognito”: wielkie C, zwarte litery, połysk
+==========================================================================
+- Napis zapisany jako „inCognito” (wielkie C), litery bliżej siebie, okrągłe lekko na siebie zachodzą
+- Wszystkie krawędzie liter lekko zaokrąglone (góra i dół kresek, boki poprzeczki „t”, końce „C” i „g”)
+- Delikatny połysk i cień pod każdą literą
+- Końcowa kropka w kolorze wybranego motywu o stałej jasności i nasyceniu, niezależnie od ustawień jasności i nasycenia
+
+
+==========================================================================
+v45 - Kolory stron i płynne przejście koloru strony
+==========================================================================
+- Ustawienia → Interfejs → Kolory stron: przełącznik „Kolory stron Google w kolorach motywu” (domyślnie włączony; wyłączenie od razu przywraca natywne kolory)
+- Nowa opcja „Płynne przejście koloru strony”: kolor otwartej strony łączy się z kolorem motywu, więc granica między interfejsem a stroną znika
+- Tryb „Na paskach”: paski przechodzą od koloru motywu do koloru strony (animowane przy zmianie karty)
+- Tryb „Na stronie”: paski zostają w kolorze motywu, a ich kolor wylewa się na stronę i przechodzi w jej natywny kolor
+
+
+==========================================================================
+v46 - Gradient jako jedna całość, trzy tryby kolorów stron, większy napis incognito
+==========================================================================
+- Gradient kolorów tworzy jedno pole na całym obramowaniu okna (bez schodków w narożnikach); paski dochodzą dokładnie do koloru strony
+- Zapasowy odczyt koloru strony z jej elementów, gdy zrzut się nie uda
+- Ustawienia → Kolory stron: trzy przyciski (Kolor motywu / Gradient kolorów / Wyłączone); tryb „na stronie” usunięty
+- Separator nad przyciskiem historii wygląda tak samo jak nad ustawieniami
+- Okno incognito: większy napis „inCognito”, nachodzący na „Arkana” z delikatnym cieniem
+
+
+**************************************************************************
+v47 - Większe logo incognito, gradient bez linii granicznej i rozsuwany z panelami
+**************************************************************************
+- Logo okna incognito: „Arkana” i „inCognito” powiększone (napis mocniej), razem na wysokość ok. 91 px
+- Gradient kolorów: usunięta linia graniczna w kolorze motywu na wewnętrznej krawędzi pasków bocznych
+- Gradient na pasku górnym rozsuwa się razem z wysuwanymi panelami bocznymi (te same czasy i animacje)

@@ -5,8 +5,8 @@ function an(k){ return S.settings.ui.anim[k]; }
 function later(k,ms,fn){ if(an(k)) setTimeout(fn,ms); else fn(); }
 function mkView(t){
   const w=document.createElement('webview');
-  w.setAttribute('allowpopups',''); w.setAttribute('src',t.url); w.style.display='none';
-  $('left').appendChild(w); views[t.id]=w; guestHooks(t,w);
+  w.setAttribute('allowpopups',''); if(INC&&INCP) w.setAttribute('partition',INCP); w.setAttribute('src',t.url); w.style.display='none';
+  $('left').appendChild(w); views[t.id]=w; guestHooks(t,w); pgHook(w);
   w.addEventListener('dom-ready',()=>{ injG(w); injS(w); try{ w.setAudioMuted(!!t.muted); }catch{} });
   const nv=e=>{ if(e.isMainFrame===false) return; let u=e.url, rw=false;
     try{ const x=new URL(u);   // wyszukiwania Google zawsze w trybie „Web” (udm=14): bez przeglądu AI, Gemini i trybu AI
@@ -26,7 +26,7 @@ function activate(id){
   if(t.url&&!views[t.id]) mkView(t);
   for(const k in views) views[k].style.display=(k===id)?'':'none';
   home.style.display=t.url?'none':'flex';
-  url.value=''; setUrlBar(); renderTabs(); renderSide(); save();
+  url.value=''; setUrlBar(); renderTabs(); renderSide(); save(); pgSoon();
   if(!t.url&&!editing) $('hs').focus();
 }
 function newTab(u='',after){
@@ -34,9 +34,10 @@ function newTab(u='',after){
   if(i>=0) f.tabs.splice(i+1,0,t); else f.tabs.push(t);
   entering.add(t.id); activate(t.id); return t;
 }
-function dupTab(id){ const o=F().tabs.find(t=>t.id===id); if(!o) return; const n=newTab(o.url,id); n.title=o.title; n.icon=o.icon; n.muted=o.muted; renderTabs(); save(); }
+function dupTab(id){ const o=findTab(id); if(!o) return; const n=newTab(o.url,id); n.title=o.title; n.icon=o.icon; n.muted=o.muted; renderTabs(); save(); }
 const pushClosed=t=>{ if(t.url){ S.closed.push({url:t.url,title:t.title,icon:t.icon,pinned:t.pinned,muted:t.muted}); if(S.closed.length>15) S.closed.shift(); } };
 function closeTab(id){
+  if(isGp(id)) return unGlobal(id,'close');
   const f=F(); if(!f.tabs.some(t=>t.id===id)||leaving.has(id)) return;
   leaving.add(id); renderTabs();
   later('tab',190,()=>{ leaving.delete(id); rmTab(f,id); });
@@ -63,7 +64,7 @@ function reloadTab(id){ const w=views[id]; if(w) w.reload(); }
 function reloadAll(){ F().tabs.forEach(t=>reloadTab(t.id)); }
 function pinTab(id){ const t=F().tabs.find(x=>x.id===id); if(!t) return; t.pinned=!t.pinned; entering.add(id); renderTabs(); save(); }
 function pinAll(){ const f=F(), v=!f.tabs.every(t=>t.pinned); f.tabs.forEach(t=>{ if(!!t.pinned!==v) entering.add(t.id); t.pinned=v; }); renderTabs(); save(); }
-function muteTab(id){ const t=F().tabs.find(x=>x.id===id); if(!t) return; t.muted=!t.muted; try{ views[id]&&views[id].setAudioMuted(t.muted); }catch{} renderTabs(); save(); }
+function muteTab(id){ const t=findTab(id); if(!t) return; t.muted=!t.muted; try{ views[id]&&views[id].setAudioMuted(t.muted); }catch{} renderTabs(); save(); }
 function muteAll(){ const f=F(), v=!f.tabs.every(t=>t.muted); f.tabs.forEach(t=>{ t.muted=v; try{ views[t.id]&&views[t.id].setAudioMuted(v); }catch{} }); renderTabs(); save(); }
 function cycle(d){ const f=F(), i=f.tabs.findIndex(t=>t.id===f.active); activate(f.tabs[(i+d+f.tabs.length)%f.tabs.length].id); }
 let swBusy=false, rising=false, swPending=null;
@@ -72,43 +73,50 @@ function swFolder(id){
   if(id===S.cur) return;
   if(!an('tab')||!an('fold')){ switchFolder(id); return; }
   swBusy=true; swPending=null;
-  const els=[...$('tabs').children,...$('pinsi').children];
+  const els=[...$('tabs').children,...pinBox().children];
   els.forEach((el,i)=>{ el.classList.remove('rise','ent'); el.style.animation='none'; void el.offsetWidth; el.style.animation=''; el.style.animationDelay=Math.min(i,6)*22+'ms'; el.classList.add('sdn'); });
   setTimeout(()=>{ rising=true; switchFolder(id); swBusy=false;
     if(swPending&&swPending!==S.cur){ const n=swPending; swPending=null; setTimeout(()=>swFolder(n),60); } else swPending=null; },190+Math.min(els.length,7)*22);
 }
 function switchFolder(id){
-  S.cur=id; for(const k in views){ views[k].remove(); delete views[k]; }
+  S.cur=id; for(const k in views){ if(isGp(k)) continue; views[k].remove(); delete views[k]; }   // karty przypięte we wszystkich folderach zostają otwarte
   const f=F(); if(!f.tabs.length) f.tabs.push({id:uid(),url:'',title:''});
-  activate(f.tabs.find(t=>t.id===f.active)?f.active:f.tabs[0].id);
+  activate(f.tabs.find(t=>t.id===f.active)||isGp(f.active)?f.active:f.tabs[0].id);
 }
-function tabHtml(t,f,pin){
+function tabHtml(t,f,pin,gp){
   const cls=(t.id===f.active?' on':'')+(entering.has(t.id)?' ent':'')+(leaving.has(t.id)?' out':'')+(t.id===dragId?' drg'+(dragGone?' gone':''):''), nm=esc(t.title||(t.url?host(t.url):'Nowa karta')),
-    ic=t.icon?`<img src="${esc(t.icon)}">`:'<i>✺</i>', mu=t.muted?'<s class="mu">🔇</s>':'';
-  return pin?`<div class="pt${cls}" data-id="${t.id}" title="${nm}">${ic}<span>${nm}</span>${mu}</div>`
+    ic=INC?incHatSvg():(t.icon?`<img src="${esc(t.icon)}">`:'<i>✺</i>'), mu=t.muted?'<s class="mu">🔇</s>':'';
+  return pin?`<div class="pt${cls}${gp?' gp':''}" data-id="${t.id}" title="${nm}">${ic}<span>${nm}</span>${mu}${gp?GP_IC:''}</div>`
             :`<div class="tab${cls}" data-id="${t.id}" title="${nm}">${ic}<span>${nm}</span>${mu}<b data-x="${t.id}">×</b></div>`;
 }
+// przypięte karty: pasek u góry (#pinsi) albo lewy pasek pod folderami (#lpins) – Ustawienia → Interfejs
+const pinLeft=()=>S.settings.ui.pinpos==='left';
+const pinBox=()=>pinLeft()?$('lpins'):$('pinsi');
 function renderTabs(){
-  const f=F(), pins=f.tabs.filter(t=>t.pinned);
+  const f=F(), pins=f.tabs.filter(t=>t.pinned), left=pinLeft();
   const un=f.tabs.filter(t=>!t.pinned).map(t=>tabHtml(t,f,0));
   if(xd) un.splice(xd.idx,0,tabHtml({id:'__xd',url:xd.tab.url,title:xd.tab.title,icon:xd.tab.icon},f,0).replace('class="tab','class="tab xd'));
   $('tabs').innerHTML=un.join('');
-  $('pinsi').innerHTML=pins.map(t=>tabHtml(t,f,1)).join(''); $('pins').classList.toggle('has',pins.length>0);
+  const ph=S.gpins.map(t=>tabHtml(t,f,1,1)).join('')+pins.map(t=>tabHtml(t,f,1)).join('');
+  $('pinsi').innerHTML=left?'':ph; $('lpins').innerHTML=left?ph:'';
+  const np=pins.length+S.gpins.length; $('pins').classList.toggle('has',!left&&np>0); $('lpins').classList.toggle('has',left&&np>0);
   entering.clear(); fitTabs();
-  if(rising){ [...$('tabs').children,...$('pinsi').children].forEach((el,i)=>{ el.classList.add('rise'); el.style.animationDelay=Math.min(i,6)*28+'ms'; }); rising=false; }
+  if(rising){ [...$('tabs').children,...pinBox().children].forEach((el,i)=>{ el.classList.add('rise'); el.style.animationDelay=Math.min(i,6)*28+'ms'; }); rising=false; }
 }
 function fitTabs(){ const n=F().tabs.filter(t=>!t.pinned).length; if(!n) return; const w=($('tabs').clientWidth-2*(n-1))/n; $('tabs').classList.toggle('sm',w<110); $('tabs').classList.toggle('xs',w<56); }
 new ResizeObserver(fitTabs).observe($('tabs'));
 $('tabs').addEventListener('click',e=>{ if(e.target.dataset.x) return closeTab(e.target.dataset.x); const t=e.target.closest('.tab'); if(t) activate(t.dataset.id); });
-$('pinsi').addEventListener('click',e=>{ const t=e.target.closest('.pt'); if(t) activate(t.dataset.id); });
+for(const el of [$('pinsi'),$('lpins')]) el.addEventListener('click',e=>{ const t=e.target.closest('.pt'); if(t) activate(t.dataset.id); });
+// dużo przypiętych kart u góry: przewijanie kółkiem w poziomie (pasek przewijania pod kartami)
+$('pinsi').addEventListener('wheel',e=>{ const p=$('pinsi'); if(p.scrollWidth>p.clientWidth&&Math.abs(e.deltaY)>Math.abs(e.deltaX)){ p.scrollLeft+=e.deltaY; e.preventDefault(); } },{passive:false});
 $('nt').onclick=()=>newTab();
-for(const el of [$('tabs'),$('pinsi')]){
+for(const el of [$('tabs'),$('pinsi'),$('lpins')]){
   el.addEventListener('auxclick',e=>{ const t=e.target.closest('.tab,.pt'); if(t&&e.button===1) closeTab(t.dataset.id); });
   el.addEventListener('contextmenu',e=>{ const el2=e.target.closest('.tab,.pt'); if(!el2) return; e.preventDefault(); tabMenu(e,el2.dataset.id); });
 }
 
 // ---------- menu kontekstowe ----------
-const kbs=a=>{ const k=a&&S.settings.keys[a]; return k?`<span class="mk">${k.split('+').map(x=>`<kbd>${esc(x)}</kbd>`).join('')}</span>`:''; };
+const kbs=a=>{ const k=a&&S.settings.keys[a]; return k?`<span class="mk">${k.split('+').map(x=>`<kbd>${esc(keyTokLabel(x))}</kbd>`).join('')}</span>`:''; };
 function showMenu(x,y,items,pin){
   const m=$('cm');
   m.innerHTML=items.map((it,i)=>it==='sep'?'<div class="ms"></div>':`<div class="mi${it.off?' off':''}" data-i="${i}"><span>${esc(it.l)}</span>${kbs(it.a)}</div>`).join('');
@@ -121,12 +129,14 @@ $('cm').addEventListener('click',e=>{ const it=e.target.closest('.mi'); if(!it) 
 document.addEventListener('mousedown',e=>{ if(!$('cm').contains(e.target)) closeMenu(); },true);
 addEventListener('blur',closeMenu); addEventListener('resize',closeMenu);
 function tabMenu(e,id){
+  if(isGp(id)) return gpMenu(e,id);
   const f=F(), t=f.tabs.find(x=>x.id===id), allP=f.tabs.every(x=>x.pinned), allM=f.tabs.every(x=>x.muted);
   showMenu(e.clientX,e.clientY,[
     {l:'Nowa karta',a:'new-tab',f:()=>newTab()},
     {l:'Duplikuj kartę',a:'dup-tab',f:()=>dupTab(id)},
     {l:'Odśwież kartę',a:'reload-tab',off:!t.url,f:()=>reloadTab(id)},
     {l:t.pinned?'Odepnij kartę':'Przypnij kartę',a:'pin-tab',f:()=>pinTab(id)},
+    {l:'Przypnij we wszystkich folderach',a:'pin-global',off:!t.url||INC,f:()=>makeGlobal(id)},
     {l:t.muted?'Włącz dźwięk karty':'Wycisz kartę',a:'mute-tab',f:()=>muteTab(id)},
     {l:'Zamknij kartę',a:'close-tab',f:()=>closeTab(id)},
     {l:'Przywróć zamkniętą kartę',a:'restore-tab',off:!S.closed.length,f:restoreTab},
@@ -134,7 +144,11 @@ function tabMenu(e,id){
     {l:'Zamknij wszystkie karty',a:'close-all',f:closeAll},
     {l:'Odśwież wszystkie karty',a:'reload-all',f:reloadAll},
     {l:allP?'Odepnij wszystkie karty':'Przypnij wszystkie karty',a:'pin-all',f:pinAll},
-    {l:allM?'Włącz dźwięk wszystkich kart':'Wycisz wszystkie karty',a:'mute-all',f:muteAll}
+    {l:allM?'Włącz dźwięk wszystkich kart':'Wycisz wszystkie karty',a:'mute-all',f:muteAll},
+    'sep',
+    {l:'Otwórz kartę w oknie incognito',off:!t.url||INC,f:()=>openIncognito([t],f.name,f.icon)},
+    {l:'Otwórz folder w oknie incognito',off:!f.tabs.some(x=>x.url)||INC,f:()=>openIncognito(f.tabs,f.name,f.icon)},
+    {l:'Nowe okno incognito',a:'incognito',f:()=>newWindow(true)}
   ]);
 }
 
@@ -199,7 +213,41 @@ $('fl').addEventListener('contextmenu',e=>{
   showMenu(e.clientX,e.clientY,[
     {l:'Zmień ikonę',f:()=>openPicker(id)},
     {l:'Zmień nazwę',a:cur&&'rename-folder',f:()=>{ editing=id; renderSide(); }},
-    {l:'Duplikuj folder',a:cur&&'dup-folder',f:()=>dupFolder(id)}
+    {l:'Duplikuj folder',a:cur&&'dup-folder',f:()=>dupFolder(id)},
+    'sep',
+    {l:'Otwórz folder w oknie incognito',off:INC||!(S.folders.find(x=>x.id===id)||{tabs:[]}).tabs.some(x=>x.url),f:()=>{ const fo=S.folders.find(x=>x.id===id); if(fo) openIncognito(fo.tabs,fo.name,fo.icon); }}
   ],true);
 });
 
+
+// ---------- strony przypięte we wszystkich folderach ----------
+const GP_IC='<svg class="gpi" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 3.5 20.5 9.5 17.6 10.4 14.2 13.8 14.8 18.4 13 20.2 9.4 16.6 4.6 21.4 3.6 20.4 8.4 15.6 4.8 12 6.6 10.2 11.2 10.8 14.6 7.4z"/></svg>';
+// karta z bieżącego folderu staje się stroną przypiętą we wszystkich folderach (jej karta i strona działają dalej)
+function makeGlobal(id){
+  const f=F(), i=f.tabs.findIndex(t=>t.id===id); if(i<0||INC) return;
+  const tb=f.tabs.splice(i,1)[0]; tb.pinned=true; S.gpins.push(tb); entering.add(tb.id);
+  if(!f.tabs.length) f.tabs.push({id:uid(),url:'',title:''});
+  f.active=id; renderTabs(); save(); toast(t('Strona jest teraz przypięta we wszystkich folderach'));
+}
+// mode: 'here' = zostaje jako przypięta karta bieżącego folderu, 'tab' = zwykła karta bieżącego folderu, 'close' = zamknięcie
+function unGlobal(id,mode){
+  const i=S.gpins.findIndex(t=>t.id===id); if(i<0) return;
+  const t=S.gpins.splice(i,1)[0], cur=F();
+  for(const f of S.folders) if(f!==cur&&f.active===id) f.active=(f.tabs[0]||{}).id||null;
+  if(mode==='close'){ pushClosed(t); if(views[id]){ views[id].remove(); delete views[id]; }
+    if(cur.active===id) activate(cur.tabs[0].id); else renderTabs(); save(); return; }
+  t.pinned=mode==='here'; cur.tabs.push(t); entering.add(t.id); activate(cur.active===id?id:cur.active); save();
+}
+function gpMenu(e,id){
+  const t=S.gpins.find(x=>x.id===id); if(!t) return;
+  showMenu(e.clientX,e.clientY,[
+    {l:'Odśwież kartę',a:'reload-tab',off:!t.url,f:()=>reloadTab(id)},
+    {l:t.muted?'Włącz dźwięk karty':'Wycisz kartę',a:'mute-tab',f:()=>muteTab(id)},
+    {l:'Duplikuj kartę',a:'dup-tab',f:()=>dupTab(id)},
+    'sep',
+    {l:'Przypnij tylko w tym folderze',f:()=>unGlobal(id,'here')},
+    {l:'Odepnij ze wszystkich folderów',a:'pin-global',f:()=>unGlobal(id,'tab')},
+    {l:'Zamknij kartę',a:'close-tab',f:()=>closeTab(id)}
+  ]);
+}
+function toggleGlobal(id){ if(isGp(id)) unGlobal(id,'tab'); else makeGlobal(id); }

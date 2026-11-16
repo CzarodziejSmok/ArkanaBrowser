@@ -16,7 +16,8 @@ function arcSvg(full){
   return `<svg class="arc${full?'':' s'}" viewBox="0 0 120 120" aria-hidden="true"><circle class="a-bg" cx="60" cy="60" r="57"/>`
     +(full?`<g class="arot"><circle class="a-th" cx="60" cy="60" r="53.8"/><path class="a-ru" d="${ru}"/><circle class="a-th" cx="60" cy="60" r="43"/>${G.dm.map(d=>`<polygon class="a-dm" points="${P2(d)}"/>`).join('')}</g>`:`<circle class="a-th" cx="60" cy="60" r="43"/>`)
     +`<g class="arot2">${G.hex.map(h=>`<polygon class="a-hx" points="${P2(h)}"/>`).join('')}</g><circle class="a-in" cx="60" cy="60" r="33"/><path class="a-bu" d="${ry}"/></svg>`; }
-function arcInit(){ const b=document.querySelector('#brand .st'); if(b) b.outerHTML=arcSvg(false); const l=$('logo'); if(l){ l.innerHTML=arcSvg(true)+'<b>Arkana</b><span>.</span>'; } }
+function arcInit(){ const b=document.querySelector('#brand .st'); if(b) b.outerHTML=arcSvg(false); const l=$('logo');
+  if(l) l.innerHTML=INC?incSparkSvg()+'<div class="incw"><b>Arkana</b>'+incWordSvg()+'</div>':arcSvg(true)+'<b>Arkana</b><span>.</span>'; }
 function drawIcon(){
   const c=document.createElement('canvas'); c.width=c.height=256; const g=c.getContext('2d');
   const bg=g.createLinearGradient(0,0,256,256); bg.addColorStop(0,P.panel2); bg.addColorStop(1,P.bg);
@@ -38,5 +39,5 @@ function bootRing(R){
   g.strokeStyle=P.acc; g.lineWidth=lw; for(const q of G.hex){ path(q,true); g.stroke(); }
   return c;
 }
-function sendIcon(){ try{ window.api.setIcon(drawIcon()); }catch{} }
+function sendIcon(){ try{ const on=S.settings.ui.dynicon!==false; window.api.setIcon(on||INC?drawIcon():'',on); }catch{} }   // wyłączona opcja: proces główny sam użyje oryginalnej ikony programu
 

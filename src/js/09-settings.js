@@ -12,16 +12,23 @@ const setPath=(p,v)=>{ const k=p.split('.'); S.settings[k[0]][k[1]]=v; };
 function calcBg(b){ const q=rgb2hsl(b.r,b.g,b.b), h=q[1]>.5?q[0]:b.hold; return [h,clamp(q[1]+(b.sat-50)*2,0,100),clamp(q[2]+(b.bri-50)*.8,0,100)]; }
 function applySettings(){
   applyUi();
-  const st=S.settings, [h,s,l]=calcBg(st.bg), light=l>55, dir=light?-1:1;
+  const st=S.settings; let [h,s,l]=calcBg(st.bg);
+  if(INC){ s*=.18; l=l>55?l-9:l*.8; }   // okno incognito: przyciemniona i wyszarzała wersja motywu użytkownika
+  const light=l>55, dir=light?-1:1;
   const col=(dl,ds=1,ll=l)=>hex(hsl2rgb(h,s*ds,clamp(ll+dl*dir,0,100))), lg=Math.min(l,40);
-  P={bg:col(0),panel:col(3.7),panel2:col(7.4),line:col(12,.9),mut:hex(hsl2rgb(h,Math.min(s,12),light?36:62)),fg:light?'#1b1612':'#f5ede3',
+  P={bg:col(0),panel:col(3.7),panel2:col(7.4),line:col(12,.9),mut:hex(hsl2rgb(h,Math.min(s,12),light?36:62)),fg:light?'#1b1612':INC?'#ececef':'#f5ede3',
      gbg:hex(hsl2rgb(h,s,lg)),gpanel:hex(hsl2rgb(h,s,lg+3.7)),gline:hex(hsl2rgb(h,s*.9,lg+12))};
-  fgRgb=light?'27,22,18':'245,237,227';
-  const ar=unhex(st.acc)||[232,130,90], ah=rgb2hsl(...ar), a2=hsl2rgb((ah[0]+12)%360,ah[1],clamp(ah[2]+12,0,90));
+  fgRgb=light?'27,22,18':INC?'236,236,239':'245,237,227';
+  let ar=unhex(st.acc)||[232,130,90]; if(INC){ const q=rgb2hsl(...ar); ar=hsl2rgb(q[0],q[1]*.22,clamp(q[2]*.88,0,100)); }
+  const ah=rgb2hsl(...ar), a2=hsl2rgb((ah[0]+12)%360,ah[1],clamp(ah[2]+12,0,90));
   P.acc=hex(ar); P.acc2=hex(a2); accRgb=ar.join(','); acc2Rgb=a2.join(',');
   const r=document.documentElement.style;
   for(const k of ['bg','panel','panel2','line','mut','acc','acc2','fg']) r.setProperty('--'+k,P[k]);
   r.setProperty('--accrgb',accRgb);
+  // kropka w napisie „inCognito”: odcień wybranego motywu (akcentu), ale zawsze o tej samej jasności i nasyceniu co domyślny pomarańcz (#e8825a) –
+  // niezależnie od ustawień jasności i nasycenia oraz od wyszarzenia okna incognito (używamy surowego st.acc, a nie przyciemnionego ar)
+  { const d=rgb2hsl(232,130,90), bq=rgb2hsl(...(unhex(st.acc)||[232,130,90]));
+    r.setProperty('--incdot',hex(hsl2rgb(bq[1]<8?d[0]:bq[0],d[1],d[2]))); }
   { const c=unhex(P.panel); r.setProperty('--cc',(0.2126*c[0]+0.7152*c[1]+0.0722*c[2])/255>0.55?'#000':'#fff'); }
   const im=st.img, bi=$('bgimg');
   bi.style.backgroundImage=im.data?`url("${im.data}")`:'none';
@@ -29,8 +36,8 @@ function applySettings(){
   bi.style.opacity=im.op/100; bi.style.filter=`blur(${im.blur}px) saturate(${im.sat}%)`; bi.style.transform=im.blur?'scale(1.1)':'none';
   $('bgdim').style.background=im.data?`rgba(${hsl2rgb(h,s,l).join(',')},${im.dim/100})`:'none';
   try{ window.api.setTitlebar(P.panel,P.fg); }catch{}
-  clearTimeout(gT); gT=setTimeout(()=>{ for(const k in views){ injG(views[k]); injS(views[k]); } injS(cw); sendIcon(); },150);
-  try{ localStorage.setItem('cb-bg',getComputedStyle(document.body).getPropertyValue('--bg').trim()); }catch{}
+  clearTimeout(gT); gT=setTimeout(()=>{ for(const k in views){ injG(views[k]); injS(views[k]); } injS(cw); sendIcon(); pgRefresh(); },150);
+  if(!INC) try{ localStorage.setItem('cb-bg',getComputedStyle(document.body).getPropertyValue('--bg').trim()); }catch{}
 }
 const SW=[[26,19,7.3],[0,0,3],[220,8,9],[222,45,10],[212,55,12],[185,50,9],[145,35,8],[75,30,8],[285,35,10],[320,40,11],[350,50,10],[12,50,10],[250,40,11],[200,14,12]];
 const swCol=c=>c[1]>15?`hsl(${c[0]} ${Math.min(75,Math.round(c[1]*1.3+15))}% 46%)`:`hsl(${c[0]} ${c[1]}% ${Math.round(c[2]*2.2+6)}%)`;   // wyraźna, stała próbka (bez wpływu nasycenia i jasności)
@@ -78,6 +85,7 @@ $('set').addEventListener('input',e=>{
   else if(t.id==='hx'){ const c=unhex(t.value); if(c){ const b=S.settings.bg; [b.r,b.g,b.b]=c; holdHue(); syncRgb(); paintSliders(); applySettings(); saveSoon(); } }
 });
 $('set').addEventListener('change',e=>{ if(e.target.id==='appson'){ S.settings.apps.on=e.target.checked; $('appsad').classList.toggle('open',e.target.checked); renderBar(); save(); } if(e.target.dataset.an){ S.settings.ui.anim[e.target.dataset.an]=e.target.checked; applyUi(); save(); }
+  if(e.target.id==='dynicon'){ S.settings.ui.dynicon=e.target.checked; save(); sendIcon(); }
   if(e.target.id==='lng'){ S.settings.ui.lang=e.target.value; save(); setTimeout(()=>location.reload(),150); } if(e.target.id==='adv'){ S.settings.adv=e.target.checked; $('set').querySelector('.ad').classList.toggle('open',e.target.checked); save(); } if(e.target.id==='fi'&&e.target.files[0]) loadImg(e.target.files[0]); });
 $('set').addEventListener('click',e=>{
   const t=e.target, d=t.dataset, kbEl=t.closest('[data-kb]');
@@ -114,12 +122,12 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if($('cm').classL
 
 // ---------- skróty klawiszowe ----------
 const ACT=[
-  ['Karty',[['new-tab','Nowa karta'],['close-tab','Zamknij kartę'],['dup-tab','Duplikuj kartę'],['reload-tab','Odśwież kartę'],['pin-tab','Przypnij / odepnij kartę'],['mute-tab','Wycisz / włącz dźwięk karty'],['restore-tab','Przywróć zamkniętą kartę']]],
+  ['Karty',[['new-tab','Nowa karta'],['close-tab','Zamknij kartę'],['dup-tab','Duplikuj kartę'],['reload-tab','Odśwież kartę'],['pin-tab','Przypnij / odepnij kartę'],['pin-global','Przypnij / odepnij we wszystkich folderach'],['mute-tab','Wycisz / włącz dźwięk karty'],['restore-tab','Przywróć zamkniętą kartę']]],
   ['Wszystkie karty',[['close-all','Zamknij wszystkie karty'],['reload-all','Odśwież wszystkie karty'],['pin-all','Przypnij / odepnij wszystkie'],['mute-all','Wycisz / włącz dźwięk wszystkich']]],
   ['Nawigacja',[['next-tab','Następna karta'],['prev-tab','Poprzednia karta'],['focus-url','Pasek adresu'],['back','Wstecz'],['forward','Dalej'],['go-home','Strona startowa']]],
   ['Foldery',[['new-folder','Nowy folder'],['dup-folder','Duplikuj bieżący folder'],['rename-folder','Zmień nazwę bieżącego folderu'],['next-folder','Następny folder'],['prev-folder','Poprzedni folder']]],
   ['Strona',[['find','Szukaj na stronie'],['zoom-in','Powiększ stronę'],['zoom-out','Pomniejsz stronę'],['zoom-reset','Zresetuj powiększenie'],['print','Drukuj stronę'],['devtools','Narzędzia deweloperskie strony']]],
-  ['Interfejs',[['settings','Ustawienia'],['toggle-panel','Panel asystenta'],['history','Historia'],['ui-devtools','Narzędzia deweloperskie interfejsu']]]
+  ['Interfejs',[['new-window','Nowe okno'],['incognito','Nowe okno incognito'],['settings','Ustawienia'],['toggle-panel','Panel asystenta'],['history','Historia'],['ui-devtools','Narzędzia deweloperskie interfejsu']]]
 ];
 const ANAME=Object.fromEntries(ACT.flatMap(g=>g[1]));
 let setTab='theme', recAct=null; const held=new Set(), peak=new Set();
@@ -145,12 +153,15 @@ const STABS=[
   ['sys','System','<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>']
 ];
 const tabsHtml=()=>`<div class="stabs">${STABS.map(([k,n,ic])=>`<button data-tab="${k}" class="${setTab===k?'on':''}"><svg viewBox="0 0 24 24">${ic}</svg><span>${n}</span></button>`).join('')}</div>`;
-const chips=k=>k?k.split('+').map(x=>`<kbd>${esc(x)}</kbd>`).join(''):'<em>brak</em>';
+// przyciski myszy w skrótach mają zapis MouseN (3 = środkowy, 4 i 5 = boczne, 6… = kolejne przyciski); tu zamieniamy go na czytelną nazwę
+function keyTokLabel(x){ const m=/^Mouse(\d{1,2})$/.exec(x); if(!m) return x; const n=+m[1]; return n===3?t('Mysz: środkowy'):n===4?t('Mysz 4 (wstecz)'):n===5?t('Mysz 5 (dalej)'):t('Mysz {n}').replace('{n}',n); }
+const chips=k=>k?k.split('+').map(x=>`<kbd>${esc(keyTokLabel(x))}</kbd>`).join(''):'<em>brak</em>';
 function renderKeys(){
   const K=S.settings.keys;
   $('set').innerHTML=`<div class="sh"><b>⚙ Ustawienia</b><button id="sx">×</button></div>${tabsHtml()}
   <p class="hint">Kliknij skrót i naciśnij nową kombinację (do 4 klawiszy naraz). Wymagany jest Ctrl lub Alt albo klawisz F1–F12. Esc anuluje.</p>
-  ${ACT.map(([g,list])=>`<h5>${g.toUpperCase()}</h5>${list.map(([a,n])=>`<div class="kr"><span>${n}</span><div class="kb${recAct===a?' rec':''}" data-kb="${a}">${recAct===a?'<em>Naciśnij klawisze…</em>':chips(K[a])}</div>${K[a]&&recAct!==a?`<button class="kc" data-kc="${a}" title="Usuń skrót">×</button>`:'<i class="kcs"></i>'}</div>`).join('')}`).join('')}
+  <p class="hint">Możesz też przypisać przycisk myszy: środkowy lub dowolny boczny (lewy i prawy są zablokowane, żeby nie zepsuć nawigacji). Przycisk myszy działa sam, bez żadnego klawisza. Jeśli chcesz wariant z klawiszem, przytrzymaj przy kliknięciu Ctrl, Alt lub Shift.</p>
+  ${ACT.map(([g,list])=>`<h5>${g.toUpperCase()}</h5>${list.map(([a,n])=>`<div class="kr"><span>${n}</span><div class="kb${recAct===a?' rec':''}" data-kb="${a}">${recAct===a?'<em>Naciśnij klawisze lub przycisk myszy…</em>':chips(K[a])}</div>${K[a]&&recAct!==a?`<button class="kc" data-kc="${a}" title="Usuń skrót">×</button>`:'<i class="kcs"></i>'}</div>`).join('')}`).join('')}
   <div class="br" style="margin-top:18px"><button id="rk">Przywróć domyślne skróty</button></div><div id="sst"></div>`;
 }
 function renderUi(){
@@ -161,6 +172,11 @@ function renderUi(){
   <h5>WYSZUKIWARKA</h5><p class="hint">Używana, gdy w pasku adresu wpiszesz tekst zamiast adresu.</p>
   <div class="sew">${Object.keys(SE).map(k=>`<button class="seb${S.settings.search.engine===k?' on':''}" data-se="${k}">${SE[k].n}</button>`).join('')}<button class="seb${S.settings.search.engine==='custom'?' on':''}" data-se="custom">Własna...</button></div>
   ${S.settings.search.engine==='custom'?`<input id="secust" class="sein${seValid(S.settings.search.custom)?'':' bad'}" placeholder="https://example.com/search?q=%s" value="${esc(S.settings.search.custom||'')}"><p class="hint">Wpisz adres wyszukiwania z %s w miejscu zapytania.</p>`:''}
+  <h5>PRZYPIĘTE KARTY</h5><p class="hint">Gdzie wyświetlać przypięte karty. Kartę można przypiąć, przeciągając ją nad wybrany pasek.</p>${seg('pinpos',[['top','Pasek u góry'],['left','Lewy pasek pod folderami']])}
+  <h5>IKONA APLIKACJI</h5><label class="ck"><input type="checkbox" id="dynicon" ${u.dynicon!==false?'checked':''}><span class="tg"></span>Ikona aplikacji w kolorach motywu</label>
+  <p class="hint">Ikona Arkany na pasku zadań (także przypiętej) przyjmuje kolory motywu. Po wyłączeniu wraca oryginalna ikona. Zmiana działa od razu.</p>
+  <h5>KOLORY STRON</h5>${seg('pgmode',[['theme','Kolor motywu'],['gradient','Gradient kolorów'],['off','Wyłączone']])}
+  <p class="hint">Kolor motywu: strony Google (np. wyszukiwarka) przyjmują kolory motywu. Gradient kolorów: Arkana pobiera kolor otwartej strony i płynnie łączy go z kolorem motywu na paskach, tak że granica między interfejsem a stroną znika (na jasnych stronach przejście jest ograniczone, żeby napisy na paskach pozostały czytelne). Wyłączone: strony wyglądają natywnie, a paski mają zwykły kolor motywu.</p>
   <h5>PANELE BOCZNE</h5>
   <label class="ck"><input type="checkbox" id="asstbtn" ${u.asst!==false?'checked':''}><span class="tg"></span>Pokaż przycisk panelu asystenta</label>
   <label class="ck"><input type="checkbox" id="clbtnon" ${u.clb!==false?'checked':''}><span class="tg"></span>Pokaż przycisk ChangeLog</label>
@@ -189,16 +205,21 @@ function renderSysTab(){
   <label class="ck"><input type="checkbox" id="updl" ${S.settings.upd.dl?'checked':''}><span class="tg"></span>Pobieraj aktualizacje automatycznie</label>
   <p class="hint">Aktualizacje pochodzą z oficjalnych wydań projektu na GitHubie. Pobrane pliki są weryfikowane sumą SHA-512, a zainstalowana aktualizacja uruchamia się przy zamknięciu przeglądarki lub od razu na życzenie.</p>
   <h5>IMPORT Z INNEJ PRZEGLĄDARKI</h5><p class="hint">Zakładki, historia i ciasteczka z Chrome, Edge, Firefoksa, Opery, Brave i Vivaldi lub z pliku zakładek.</p><div class="br"><button id="impopen">Importuj dane...</button></div>
+  <h5>PRZEGLĄDARKA DOMYŚLNA</h5><p class="hint" id="defst"></p><p class="hint" id="defhint"></p><div class="br"><button id="defset">Ustaw Arkanę jako domyślną</button></div>
+  <h5>PORADNIK</h5><p class="hint">Krótki przewodnik po najważniejszych miejscach interfejsu. Sam pokazuje się tylko przy pierwszym uruchomieniu.</p><div class="br"><button id="tourbtn">Pokaż poradnik ponownie</button></div>
   <h5>KONFIGURACJA</h5><div class="br"><button id="ex">Zapisz do pliku…</button><button id="imp">Wczytaj z pliku…</button><button id="rs">Domyślne</button></div><p class="hint">Zapis i wczytanie obejmują wszystkie ustawienia, ale nie karty i foldery.</p><div id="sst"></div>
   <h5>O PROGRAMIE</h5>
   <p class="hint">Arkana Browser ${UPD.cur?'v'+UPD.cur:VERSION}</p>`;
-  paintSliders(); updPaint();
+  paintSliders(); updPaint(); defPaint();
 }
 function applyUi(){
   const u=S.settings.ui, c=document.body.classList;
+  c.toggle('inc',INC); c.toggle('pinl',u.pinpos==='left');
+  if(applyUi.pp!==undefined&&applyUi.pp!==u.pinpos&&S.cur) renderTabs(); applyUi.pp=u.pinpos;
   ['win','simple','fancy'].forEach(m=>c.toggle('wb-'+m,u.win===m)); ['simple','fancy'].forEach(m=>c.toggle('nb-'+m,u.nav===m));
   c.toggle('round',!!u.round); c.toggle('no-asst',u.asst===false); c.toggle('no-cl',u.clb===false); c.toggle('na-btn',!u.anim.btn); c.toggle('na-fold',!u.anim.fold); c.toggle('na-tab',!u.anim.tab); c.toggle('na-panel',!u.anim.panel); c.toggle('na-apps',!u.anim.apps);
   const ws=document.querySelectorAll('.aw'); if(ws.length){ ws.forEach(w=>{ w.__rs=0; place(w,rectOf(w)); roundSync(w); }); updateContacts(); }
+  applyPgfx();
 }
 function startRec(a){ recAct=a; held.clear(); peak.clear(); try{ window.api.pauseKeys(true); }catch{} renderKeys(); }
 function stopRec(){ recAct=null; held.clear(); peak.clear(); try{ window.api.pauseKeys(false); }catch{} }
@@ -213,6 +234,28 @@ document.addEventListener('keyup',e=>{
   if(!recAct) return; e.preventDefault(); held.delete(modOf(e.code)||keyLabel(e.code));
   if(!held.size&&peak.size) finishRec();
 },true);
+// ---- przycisk myszy jako skrót (środkowy lub boczny; lewy i prawy zablokowane) ----
+const mouseNumOf=b=>b===1?3:b===3?4:b===4?5:b+1;   // numer przycisku DOM -> numer jak w grach (lewy i prawy tu nie trafiają)
+let recMouseT=0, recMouseB=-1;
+document.addEventListener('mousedown',e=>{
+  if(!recAct) return;
+  if(e.button===0||e.button===2){ if(e.target.closest&&e.target.closest('.kb.rec')){ e.preventDefault(); e.stopPropagation(); msg('Lewego i prawego przycisku myszy nie można przypisać do skrótu.'); } return; }
+  e.preventDefault(); e.stopPropagation(); recMouseT=Date.now(); recMouseB=e.button;
+  finishMouseRec(mouseNumOf(e.button),e);
+},true);
+const swallowRec=e=>{ if(recMouseB===e.button&&Date.now()-recMouseT<1500){ e.preventDefault(); e.stopPropagation(); } };
+document.addEventListener('mouseup',swallowRec,true); document.addEventListener('auxclick',swallowRec,true);
+document.addEventListener('contextmenu',e=>{ if(recAct&&e.target.closest&&e.target.closest('.kb.rec')) e.preventDefault(); },true);
+async function finishMouseRec(n,e){
+  const a=recAct, K=S.settings.keys, extra=[...peak].filter(x=>!MODS.includes(x));
+  const mods=MODS.filter(m=>peak.has(m)||(m==='Ctrl'&&e.ctrlKey)||(m==='Alt'&&e.altKey)||(m==='Shift'&&e.shiftKey));
+  stopRec();
+  if(n>64||extra.length){ renderKeys(); return msg('Do przycisku myszy można dodać tylko Ctrl, Alt lub Shift.'); }
+  const str=[...mods,'Mouse'+n].join('+');
+  const other=Object.keys(K).find(b=>b!==a&&K[b]===str);
+  if(other){ const ok=await ask('Ten skrót jest już używany',t('Kombinacja {k} jest przypisana do opcji „{a}”. Przypisanie jej tutaj usunie ją z tamtej opcji.').replace('{k}',str.split('+').map(keyTokLabel).join('+')).replace('{a}',t(ANAME[other]||other)),'Przypisz tutaj'); if(!ok){ renderKeys(); return; } K[other]=''; }
+  K[a]=str; pushKeys(); save(); renderKeys();
+}
 async function finishRec(){
   const a=recAct, combo=canon([...peak]), mods=combo.filter(x=>MODS.includes(x)), main=combo.filter(x=>!MODS.includes(x)), str=combo.join('+'), K=S.settings.keys;
   stopRec();

@@ -50,7 +50,8 @@ function applyLang(){ if(!LD&&!CODEMODE) return; document.documentElement.lang=S
 const save=()=>{ if(SEC) return; try{localStorage.setItem('cb-state',JSON.stringify(S))}catch{} try{window.api&&window.api.saveState&&window.api.saveState(S)}catch{}};
 window.addEventListener('beforeunload',save);
 const F=()=>S.folders.find(f=>f.id===S.cur);
-const T=()=>F().tabs.find(t=>t.id===F().active);
+const T=()=>{ const f=F(), a=f.active; return f.tabs.find(t=>t.id===a)||S.gpins.find(t=>t.id===a); };
+const isGp=id=>S.gpins.some(t=>t.id===id), findTab=id=>F().tabs.find(t=>t.id===id)||S.gpins.find(t=>t.id===id);
 const views={}; let editing=null;
 
 const gcss=()=>`html,body,#gb,#gbw,#main,#cnt,#center_col,#rcnt,#rso,#appbar,#searchform,#hdtb,#hdtb-msb,#top_nav,#sfcnt,.sfbg,.minidiv,#tsf,header,[role=banner],[role=navigation],#botstuff,#foot,#fbar,.fbar,#footcnt,.appbar,#extabar,#slim_appbar{background:${P.gbg}!important;background-color:${P.gbg}!important}
@@ -67,12 +68,15 @@ function gpage(c){
     if(a<.9||Math.max(r,g,b)-Math.min(r,g,b)>26) return null;
     const l=(r+g+b)/3; if(l>78) return null; return l<37?'bg':l<57?'panel':'line'; };
   const run=()=>{ window.__cbq=false;
-    document.querySelectorAll('body, body *').forEach(el=>{
+    if(window.__cbc.on===false){   // opcja wyłączona: cofamy własne zmiany kolorów (elementy są oznaczone atrybutem data-cbr)
+      document.querySelectorAll('[data-cbr]').forEach(el=>{ el.style.removeProperty('background-color'); if(el.hasAttribute('data-cbrr')) el.style.removeProperty('border-radius');
+        el.removeAttribute('data-cbr'); el.removeAttribute('data-cbrr'); delete el.__cbr; });
+    } else document.querySelectorAll('body, body *').forEach(el=>{
       if(/^(IMG|SVG|PATH|VIDEO|CANVAS|SCRIPT|STYLE|G)$/i.test(el.tagName)) return;
       const b=el.getBoundingClientRect(); if(b.width<40||b.height<8||b.top>300||b.bottom<0) return;
       const r=el.__cbr||role(getComputedStyle(el).backgroundColor);
-      if(r){ el.__cbr=r; el.style.setProperty('background-color',window.__cbc[r],'important');
-        const pr=el.parentElement?parseFloat(getComputedStyle(el.parentElement).borderTopLeftRadius):0; if(pr>0&&!parseFloat(getComputedStyle(el).borderTopLeftRadius)) el.style.setProperty('border-radius','inherit','important'); } });
+      if(r){ el.__cbr=r; el.setAttribute('data-cbr','1'); el.style.setProperty('background-color',window.__cbc[r],'important');
+        const pr=el.parentElement?parseFloat(getComputedStyle(el.parentElement).borderTopLeftRadius):0; if(pr>0&&!parseFloat(getComputedStyle(el).borderTopLeftRadius)){ el.style.setProperty('border-radius','inherit','important'); el.setAttribute('data-cbrr','1'); } } });
     document.querySelectorAll('a,[role=tab],[role=link],button').forEach(el=>{
       const t=(el.textContent||'').trim();
       if(t.length<12&&/^(Tryb AI|AI Mode)$/i.test(t)) (el.closest('[role=listitem]')||el).style.setProperty('display','none','important'); });
@@ -83,7 +87,8 @@ function gpage(c){
 }
 const scrollCss=()=>`::-webkit-scrollbar{width:10px!important;height:10px!important}::-webkit-scrollbar-track{background:transparent!important}::-webkit-scrollbar-thumb{background:${P.mut}66!important;border-radius:10px!important;border:2px solid transparent!important;background-clip:content-box!important}::-webkit-scrollbar-thumb:hover{background:${P.acc}!important;background-clip:content-box!important}::-webkit-scrollbar-corner{background:transparent!important}`;
 function injS(w){ try{ Promise.resolve(w._sk&&w.removeInsertedCSS(w._sk)).catch(()=>{}).then(()=>w.insertCSS(scrollCss())).then(k=>{w._sk=k}).catch(()=>{}); }catch{} }
-function injG(w){ try{ if(!isG(w.getURL())) return;
-  Promise.resolve(w._ck&&w.removeInsertedCSS(w._ck)).catch(()=>{}).then(()=>w.insertCSS(gcss())).then(k=>{w._ck=k}).catch(()=>{});
-  w.executeJavaScript(`(${gpage.toString()})(${JSON.stringify({bg:P.gbg,panel:P.gpanel,line:P.gline})})`).catch(()=>{}); }catch{} }
+// kolory stron Google w kolorach motywu (Ustawienia → Interfejs → Kolory stron → „Kolor motywu”; domyślnie włączone); po wyłączeniu usuwamy style i przywracamy natywne kolory
+function injG(w){ try{ if(!isG(w.getURL())) return; const on=S.settings.ui.pgmode==='theme';
+  Promise.resolve(w._ck&&w.removeInsertedCSS(w._ck)).catch(()=>{}).then(()=>{ w._ck=null; return on?w.insertCSS(gcss()):null; }).then(k=>{ w._ck=k||null; }).catch(()=>{});
+  w.executeJavaScript(`(${gpage.toString()})(${JSON.stringify({bg:P.gbg,panel:P.gpanel,line:P.gline,on})})`).catch(()=>{}); }catch{} }
 

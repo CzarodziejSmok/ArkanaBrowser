@@ -1,4 +1,4 @@
-# Arkana Browser v39
+# Arkana Browser v47
 1. Zainstaluj Node.js (LTS). 2. `npm install`, potem `npm start` (lub plik .bat).
 Ustawienia (⚙ na dole paska folderów, Ctrl+,): zakładki Motyw / Interfejs / Aplikacje / Historia / Skróty / System (opcje jednej funkcji zebrane pod nagłówkami). Import z innych przeglądarek (Ustawienia → System): zakładki, historia, wyszukiwarka domyślna i ciasteczka z Chrome, Edge, Opery, Brave, Vivaldi i Firefoksa (Windows; przeglądarka musi być zamknięta) lub z pliku zakładek HTML. Przycisk ChangeLog (ikona notatki) pokazuje historię wersji z pliku CHANGELOG.txt: nagłówek z liniami = to wersja niewydana, z liniami * wydana.
 Interfejs: styl przycisków okna i nawigacji, wyłączanie animacji, język (PL/EN/DE/ES/FR/HE/ZH-TW/ŚL).
@@ -31,5 +31,5 @@ Karty i foldery: przeciągnij, by zmienić kolejność; wyciągnij poza pasek i 
 ## Struktura projektu (od v39)
 - `src/js/NN-*.js` to źródła aplikacji (numer = kolejność ładowania). **Edytuj tylko te pliki.** `tools/bundle.js` składa je w `js/bundle.js`, który ładuje `index.html`; plik generuje się sam przy `npm start`, `npm run dist`, `npm run release`, `npm run check` i w GitHub Actions (nie trafia do repozytorium: jest w `.gitignore`).
 - `css/app.css` to style, `js/preboot.js` mały skrypt startowy, `wv-preload.js` skrypt wstrzykiwany do kart (hasła, zoom kółkiem).
-- Proces główny: `main.js`, `permissions.js` (zgody stron), `vault.js` (sejf haseł), `adblock.js` (blokowanie reklam), `importer.js` (import z innych przeglądarek), `updater.js`.
+- Proces główny: `main.js`, `permissions.js` (zgody stron), `vault.js` (sejf haseł), `adblock.js` (blokowanie reklam), `weblogin.js` (logowanie Google i klucze dostępu), `importer.js` (import z innych przeglądarek), `updater.js`.
 - `npm test` uruchamia testy jednostkowe z katalogu `tests/` (bez dodatkowych pakietów). `index.html` ma politykę CSP: bez skryptów wbudowanych i bez `onclick=` w kodzie HTML.

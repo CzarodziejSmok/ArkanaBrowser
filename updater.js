@@ -10,13 +10,24 @@ const cmp = (a, b) => {   // porównanie wersji 1.2.3 (prefiks „v” i przyros
   for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0) ? 1 : -1; }
   return 0;
 };
-function repoCfg() {
+// Repozytorium wydań. UWAGA: electron-builder usuwa sekcję „build” z package.json wewnątrz zainstalowanej aplikacji, więc samo czytanie
+// build.publish działa tylko przy uruchomieniu z kodu (npm start / .bat) – w instalatorze dawało błąd „Repozytorium aktualizacji nie jest skonfigurowane”.
+// Źródła po kolei: (1) package.json → build.publish, (2) resources/app-update.yml (tworzy go instalator), (3) stała poniżej.
+const DEFAULT_REPO = { owner: 'CzarodziejSmok', repo: 'ArkanaBrowser' };
+const validRepo = o => !!(o && o.owner && o.repo && /^[\w.-]+$/.test(o.owner) && /^[\w.-]+$/.test(o.repo) && !/^(TWOJ|YOUR|OWNER)/i.test(o.owner));
+function repoCfg(opts = {}) {
   try {
-    const pk = require('./package.json');
+    const pk = opts.pkg || require('./package.json');
     const pb = [].concat((pk.build && pk.build.publish) || []).find(p => p.provider === 'github');
-    if (pb && pb.owner && pb.repo && !/^(TWOJ|YOUR|OWNER)/i.test(pb.owner)) return { owner: pb.owner, repo: pb.repo };
+    if (validRepo(pb)) return { owner: pb.owner, repo: pb.repo };
   } catch {}
-  return null;
+  try {
+    const fs = require('fs'), path = require('path');
+    const yml = opts.yml !== undefined ? opts.yml : fs.readFileSync(path.join(process.resourcesPath || '', 'app-update.yml'), 'utf8');
+    const g = k => { const m = new RegExp('^' + k + ':\\s*[\'"]?([^\'"\\s#]+)', 'm').exec(yml); return m ? m[1] : ''; };
+    if (/^github$/m.test(g('provider')) || /provider:\s*github/.test(yml)) { const r = { owner: g('owner'), repo: g('repo') }; if (validRepo(r)) return r; }
+  } catch {}
+  return { ...DEFAULT_REPO };
 }
 const short = e => String((e && e.message) || e || '').split('\n')[0].slice(0, 160);
 const okUrl = u => typeof u === 'string' && /^https:\/\/github\.com\//.test(u);
@@ -88,4 +99,4 @@ function init({ app, ipcMain, BrowserWindow, shell, net, isSecondary, primary = 
   ipcMain.on('upd-set', (e, c) => { if (isSecondary(e.sender.id) || !c) return; cfg.auto = c.auto !== false; cfg.dl = c.dl !== false; schedule(); });   // ustawienia przyjmujemy tylko z okna głównego
   return { st, cfg, check, download, schedule };
 }
-module.exports = { init, cmp, repoCfg };
+module.exports = { init, cmp, repoCfg, DEFAULT_REPO };
