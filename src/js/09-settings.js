@@ -7,34 +7,46 @@ function rgb2hsl(r,g,b){ r/=255; g/=255; b/=255; const mx=Math.max(r,g,b), mn=Ma
 const hex=a=>'#'+a.map(x=>x.toString(16).padStart(2,'0')).join('');
 const unhex=h=>{ const m=/^#?([0-9a-f]{6})$/i.exec(String(h).trim()); return m?[0,2,4].map(i=>parseInt(m[1].substr(i,2),16)):null; };
 const saveSoon=()=>{ clearTimeout(svT); svT=setTimeout(save,300); };
-const setPath=(p,v)=>{ const k=p.split('.'); S.settings[k[0]][k[1]]=v; };
+const setPath=(p,v)=>{ const k=p.split('.'); (k[0]==='bg'?curBg():S.settings[k[0]])[k[1]]=v; };
+function curBg(){ const bs=fixBgs(); return bs[S.settings.bgSel]; }
+// kolor akcentu, który edytują suwaki RGB (rozwinięty na liście), oraz korekty uniwersalne (v49.1): przesuwają jasność, nasycenie i RGB każdego koloru o wartość, nigdy poza zakresem
+function accGet(){ fixBgs(); return S.settings.accs[S.settings.accSel]; }
+function accSet(h){ fixBgs(); S.settings.accs[S.settings.accSel]=String(h).toLowerCase(); S.settings.acc=S.settings.accs[0]; }
+function effBg(b,a){ a=a||{}; return {...b,r:clamp(b.r+(a.r|0),0,255),g:clamp(b.g+(a.g|0),0,255),b:clamp(b.b+(a.b|0),0,255),sat:clamp(b.sat+(a.sat|0),0,100),bri:clamp(b.bri+(a.bri|0),0,100)}; }
+function effAcc(h,a){ a=a||{}; let c=unhex(h)||[232,130,90]; if(a.sat||a.bri){ const q=rgb2hsl(...c); c=hsl2rgb(q[0],clamp(q[1]+(a.sat|0),0,100),clamp(q[2]+(a.bri|0),0,100)); } return [clamp(c[0]+(a.r|0),0,255),clamp(c[1]+(a.g|0),0,255),clamp(c[2]+(a.b|0),0,255)]; }
+function accApply(ar){   // ustawia akcent w interfejsie; wołane przy każdej zmianie ustawień oraz co klatkę przy przechodzeniu kolorów akcentu w czasie
+  if(INC){ const q=rgb2hsl(...ar); ar=hsl2rgb(q[0],q[1]*.22,clamp(q[2]*.88,0,100)); }
+  const ah=rgb2hsl(...ar), a2=hsl2rgb((ah[0]+12)%360,ah[1],clamp(ah[2]+12,0,90));
+  P.acc=hex(ar); P.acc2=hex(a2); accRgb=ar.join(','); acc2Rgb=a2.join(',');
+  const r=document.documentElement.style; r.setProperty('--acc',P.acc); r.setProperty('--acc2',P.acc2); r.setProperty('--accrgb',accRgb); }   // kolor, który edytują suwaki (rozwinięty na liście kolorów motywu)
 // kolor bazowy (R,G,B) + korekty nasycenia i jasności, z których żadna nie zmienia pozostałych
 function calcBg(b){ const q=rgb2hsl(b.r,b.g,b.b), h=q[1]>.5?q[0]:b.hold; return [h,clamp(q[1]+(b.sat-50)*2,0,100),clamp(q[2]+(b.bri-50)*.8,0,100)]; }
 function applySettings(){
   applyUi();
-  const st=S.settings; let [h,s,l]=calcBg(st.bg);
-  if(INC){ s*=.18; l=l>55?l-9:l*.8; }   // okno incognito: przyciemniona i wyszarzała wersja motywu użytkownika
-  const light=l>55, dir=light?-1:1;
-  const col=(dl,ds=1,ll=l)=>hex(hsl2rgb(h,s*ds,clamp(ll+dl*dir,0,100))), lg=Math.min(l,40);
-  P={bg:col(0),panel:col(3.7),panel2:col(7.4),line:col(12,.9),mut:hex(hsl2rgb(h,Math.min(s,12),light?36:62)),fg:light?'#1b1612':INC?'#ececef':'#f5ede3',
-     gbg:hex(hsl2rgb(h,s,lg)),gpanel:hex(hsl2rgb(h,s,lg+3.7)),gline:hex(hsl2rgb(h,s*.9,lg+12))};
+  const st=S.settings;
+  // 1–4 kolory motywu: każdy liczony osobno, kolory jednolite (ramki, pola, linie) to ich średnia, a duże powierzchnie dostają przejście kolorów (--tg0/1/2)
+  const cl=fixBgs().map(b=>{ let [h,s,l]=calcBg(effBg(b,st.bgAdj)); if(INC){ s*=.18; l=l>55?l-9:l*.8; } return [h,s,l]; });   // okno incognito: przyciemniona i wyszarzała wersja motywu użytkownika
+  const [h,s,l]=cl[0], lAvg=cl.reduce((a,c)=>a+c[2],0)/cl.length, light=lAvg>55, dir=light?-1:1;
+  const lv=(dl,ds=1)=>cl.map(([h,s,l])=>hsl2rgb(h,s*ds,clamp(l+dl*dir,0,100))), lgv=(dl,ds=1)=>cl.map(([h,s,l])=>hsl2rgb(h,s*ds,clamp(Math.min(l,40)+dl,0,100)));
+  const av=a=>[0,1,2].map(i=>Math.round(a.reduce((x,c)=>x+c[i],0)/a.length));
+  P={bg:hex(av(lv(0))),panel:hex(av(lv(3.7))),panel2:hex(av(lv(7.4))),line:hex(av(lv(12,.9))),mut:hex(hsl2rgb(h,Math.min(s,12),light?36:62)),fg:light?'#1b1612':INC?'#ececef':'#f5ede3',
+     gbg:hex(lgv(0)[0]),gpanel:hex(lgv(3.7)[0]),gline:hex(lgv(12,.9)[0]),bg1:hex(lv(0)[0])};   // strony (tło webview i kolorowanie Google) dziedziczą PIERWSZY kolor motywu, a nie średnią
   fgRgb=light?'27,22,18':INC?'236,236,239':'245,237,227';
-  let ar=unhex(st.acc)||[232,130,90]; if(INC){ const q=rgb2hsl(...ar); ar=hsl2rgb(q[0],q[1]*.22,clamp(q[2]*.88,0,100)); }
-  const ah=rgb2hsl(...ar), a2=hsl2rgb((ah[0]+12)%360,ah[1],clamp(ah[2]+12,0,90));
-  P.acc=hex(ar); P.acc2=hex(a2); accRgb=ar.join(','); acc2Rgb=a2.join(',');
+  accApply(effAcc((st.accs&&st.accs[0])||st.acc,st.accAdj));
   const r=document.documentElement.style;
-  for(const k of ['bg','panel','panel2','line','mut','acc','acc2','fg']) r.setProperty('--'+k,P[k]);
-  r.setProperty('--accrgb',accRgb);
+  for(const k of ['bg','bg1','panel','panel2','line','mut','acc','acc2','fg']) r.setProperty('--'+k,P[k]);
+  tmSync();   // przejścia kolorów motywu (--tg0/1/2) i ruch kolorów; zob. 36-themecolors.js
+  bgKick();   // efekty tła mogły zostać włączone: wznawiamy pętlę tła (zatrzymuje się sama, gdy nic nie widać)
   // kropka w napisie „inCognito”: odcień wybranego motywu (akcentu), ale zawsze o tej samej jasności i nasyceniu co domyślny pomarańcz (#e8825a) –
   // niezależnie od ustawień jasności i nasycenia oraz od wyszarzenia okna incognito (używamy surowego st.acc, a nie przyciemnionego ar)
-  { const d=rgb2hsl(232,130,90), bq=rgb2hsl(...(unhex(st.acc)||[232,130,90]));
+  { const d=rgb2hsl(232,130,90), bq=rgb2hsl(...(unhex((st.accs&&st.accs[0])||st.acc)||[232,130,90]));
     r.setProperty('--incdot',hex(hsl2rgb(bq[1]<8?d[0]:bq[0],d[1],d[2]))); }
   { const c=unhex(P.panel); r.setProperty('--cc',(0.2126*c[0]+0.7152*c[1]+0.0722*c[2])/255>0.55?'#000':'#fff'); }
   const im=st.img, bi=$('bgimg');
   bi.style.backgroundImage=im.data?`url("${im.data}")`:'none';
   bi.style.backgroundSize=im.fit==='contain'?'contain':'cover';
   bi.style.opacity=im.op/100; bi.style.filter=`blur(${im.blur}px) saturate(${im.sat}%)`; bi.style.transform=im.blur?'scale(1.1)':'none';
-  $('bgdim').style.background=im.data?`rgba(${hsl2rgb(h,s,l).join(',')},${im.dim/100})`:'none';
+  $('bgdim').style.background=im.data?`rgba(${av(lv(0)).join(',')},${im.dim/100})`:'none';
   try{ window.api.setTitlebar(P.panel,P.fg); }catch{}
   clearTimeout(gT); gT=setTimeout(()=>{ for(const k in views){ injG(views[k]); injS(views[k]); } injS(cw); sendIcon(); pgRefresh(); },150);
   if(!INC) try{ localStorage.setItem('cb-bg',getComputedStyle(document.body).getPropertyValue('--bg').trim()); }catch{}
@@ -43,46 +55,42 @@ const SW=[[26,19,7.3],[0,0,3],[220,8,9],[222,45,10],[212,55,12],[185,50,9],[145,
 const swCol=c=>c[1]>15?`hsl(${c[0]} ${Math.min(75,Math.round(c[1]*1.3+15))}% 46%)`:`hsl(${c[0]} ${c[1]}% ${Math.round(c[2]*2.2+6)}%)`;   // wyraźna, stała próbka (bez wpływu nasycenia i jasności)
 const AC=['#e8825a','#f2b36b','#e5c158','#7fc97f','#4fc3b7','#5aa9e8','#9b8cf0','#e06ba8','#e5534b'];
 const FX=[['all','Wszystkie efekty'],['dust','Świecący pył'],['waves','Fale'],['stars','Migoczące gwiazdy'],['aurora','Zorza'],['rain','Deszcz światła']];
-const fmt=(p,v)=>{ if(p==='hist.step'){ const d=HSTEPS[v]; return d?t('Dni: {n}').replace('{n}',d):t('Bez limitu'); } if(p==='bg.sat'||p==='bg.bri'){ const d=(v-50)*2; return (d>0?'+':'')+d; } return p.startsWith('bg.')?String(v):p==='img.blur'?v+'px':v+'%'; };
+const fmt=(p,v)=>{ if(p==='hist.step'){ const d=HSTEPS[v]; return d?t('Dni: {n}').replace('{n}',d):t('Bez limitu'); } if(/^(bg|acc)Adj\./.test(p)) return (v>0?'+':'')+v; if(p==='bg.sat'||p==='bg.bri'){ const d=(v-50)*2; return (d>0?'+':'')+d; } return p.startsWith('bg.')?String(v):p==='img.blur'?v+'px':v+'%'; };
 const stp=p=>p==='hist.step'?1:(S.settings.ui.step5?5:1);
 const sla=(k,label,val)=>`<div class="sr"><span>${label}<b>${val}</b></span><div class="rg" data-k="${k}"><i class="tr"></i><i class="fl"></i><input type="range" data-a="${k}" min="0" max="255" step="${stp('acc')}" value="${val}"></div></div>`;
 const sl=(p,label,min,max,val,kind)=>`<div class="sr"><span>${label}<b>${fmt(p,val)}</b></span><div class="rg" data-k="${kind}"><i class="tr"></i><i class="fl"></i>${kind==='fx'?`<canvas class="mf" data-fx="${p.split('.')[1]}"></canvas>`:''}<input type="range" data-p="${p}" min="${min}" max="${max}" step="${stp(p)}" value="${val}"></div></div>`;
 const dispCol=b=>{ const [h,s,l]=calcBg(b); return `hsl(${h} ${s}% ${l*.65+20}%)`; };
 function paintSliders(){
-  const b=S.settings.bg;
+  const b=curBg();
   $('set').querySelectorAll('.rg').forEach(g=>{ const i=g.querySelector('input'); g.style.setProperty('--v',(i.value-i.min)/(i.max-i.min)*100);
     const k=g.dataset.k; if(k==='sat'||k==='bri') g.style.setProperty('--g',`linear-gradient(90deg,${[0,25,50,75,100].map(x=>dispCol({...b,[k]:x})).join(',')})`); });
+ if(typeof themeRefresh==='function') themeRefresh();
 }
 function renderSet(){
   const tabFn={keys:renderKeys,ui:renderUi,apps:renderApps,priv:renderPrivTab,hist:renderHistTab,sys:renderSysTab}[setTab];
   if(tabFn) return tabFn();
-  const st=S.settings, b=st.bg, im=st.img;
+  const st=S.settings, im=st.img;
   $('set').innerHTML=`<div class="sh"><b>⚙ Ustawienia</b><button id="sx">×</button></div>${tabsHtml()}
-  <h5>KOLOR TŁA</h5><div class="sw">${SW.map((c,i)=>`<i data-sw="${i}" style="background:${swCol(c)}"></i>`).join('')}</div>
-  ${sl('bg.sat','Nasycenie',0,100,b.sat,'sat')}${sl('bg.bri','Jasność',0,100,b.bri,'bri')}
-  <label class="ck"><input type="checkbox" id="adv" ${st.adv?'checked':''}><span class="tg"></span>Zaawansowane (panel RGB)</label>
-  <div class="ad ${st.adv?'open':''}"><div class="adi"><div id="rgb">${sl('bg.r','R — czerwony',0,255,b.r,'r')}${sl('bg.g','G — zielony',0,255,b.g,'g')}${sl('bg.b','B — niebieski',0,255,b.b,'b')}<input id="hx" value="${hex([b.r,b.g,b.b])}" maxlength="7"><p class="hint">Każdy suwak działa niezależnie. Nasycenie i jasność są korektą nałożoną na kolor z RGB.</p></div></div></div>
-  <h5>KOLOR AKCENTU</h5><div class="sw">${AC.map(c=>`<i data-ac="${c}" style="background:${c}"></i>`).join('')}</div>
-  <label class="ck"><input type="checkbox" id="accadv" ${st.accAdv?'checked':''}><span class="tg"></span>Zaawansowane (panel RGB)</label>
-  <div class="ad ${st.accAdv?'open':''}" id="accad"><div class="adi"><div id="argb">${(ac=>sla('r','R — czerwony',ac[0])+sla('g','G — zielony',ac[1])+sla('b','B — niebieski',ac[2]))(unhex(st.acc)||[232,130,90])}<input id="ahx" value="${st.acc}" maxlength="7"></div></div></div>
+  ${themeColorsHtml()}
+  ${accentHtml()}
   <h5>EFEKTY TŁA</h5>${FX.map(([k,n])=>sl('fx.'+k,n,0,100,st.fx[k],'fx')).join('')}
   <h5>OBRAZ TŁA</h5><div class="br"><button id="pick">Wybierz obraz…</button>${im.data?'<button id="rmimg">Usuń obraz</button>':''}</div><input type="file" id="fi" accept="image/*" hidden>
   ${im.data?sl('img.op','Krycie obrazu',0,100,im.op,'img')+sl('img.blur','Rozmycie',0,30,im.blur,'img')+sl('img.dim','Przyciemnienie',0,90,im.dim,'img')+sl('img.sat','Nasycenie obrazu',0,200,im.sat,'img')+`<label class="sr"><span>Dopasowanie</span><select data-p="img.fit"><option value="cover" ${im.fit==='cover'?'selected':''}>Wypełnij</option><option value="contain" ${im.fit==='contain'?'selected':''}>Dopasuj</option></select></label>`:''}`;
-  paintSliders();
+  paintSliders(); tmSync();
 }
-function syncAcc(){ const c=unhex(S.settings.acc)||[232,130,90]; $('set').querySelectorAll('[data-a]').forEach(i=>{ const v=c['rgb'.indexOf(i.dataset.a)]; i.value=v; i.closest('.sr').querySelector('b').textContent=v; }); const ah=$('ahx'); if(ah&&document.activeElement!==ah) ah.value=S.settings.acc; paintSliders(); }
-function syncRgb(){ const b=S.settings.bg;
+function syncAcc(){ const c=unhex(accGet())||[232,130,90]; $('set').querySelectorAll('[data-a]').forEach(i=>{ const v=c['rgb'.indexOf(i.dataset.a)]; i.value=v; i.closest('.sr').querySelector('b').textContent=v; }); const ah=$('ahx'); if(ah&&document.activeElement!==ah) ah.value=accGet(); paintSliders(); }
+function syncRgb(){ const b=curBg();
   $('set').querySelectorAll('[data-p^="bg."]').forEach(i=>{ const k=i.dataset.p.slice(3); if('rgb'.includes(k)&&k.length===1){ i.value=b[k]; i.closest('.sr').querySelector('b').textContent=b[k]; } }); }
-function holdHue(){ const b=S.settings.bg, q=rgb2hsl(b.r,b.g,b.b); if(q[1]>.5) b.hold=q[0]; }
+function holdHue(){ const b=curBg(), q=rgb2hsl(b.r,b.g,b.b); if(q[1]>.5) b.hold=q[0]; }
 $('set').addEventListener('input',e=>{
   const t=e.target;
   if(t.dataset.p){ const p=t.dataset.p, v=t.type==='range'?+t.value:t.value; setPath(p,v);
     if(t.type==='range') t.closest('.sr').querySelector('b').textContent=fmt(p,v);
-    if(/^bg\.[rgb]$/.test(p)){ holdHue(); const hx=$('hx'); if(hx) hx.value=hex([S.settings.bg.r,S.settings.bg.g,S.settings.bg.b]); }
+    if(/^bg\.[rgb]$/.test(p)){ holdHue(); const hx=$('hx'); if(hx) hx.value=hex([curBg().r,curBg().g,curBg().b]); }
     paintSliders(); applySettings(); saveSoon(); }
-  else if(t.dataset.a){ const c=unhex(S.settings.acc)||[232,130,90]; c['rgb'.indexOf(t.dataset.a)]=+t.value; S.settings.acc=hex(c); t.closest('.sr').querySelector('b').textContent=t.value; const ah=$('ahx'); if(ah) ah.value=S.settings.acc; paintSliders(); applySettings(); saveSoon(); }
-  else if(t.id==='ahx'){ const c=unhex(t.value); if(c){ S.settings.acc=hex(c); syncAcc(); applySettings(); saveSoon(); } }
-  else if(t.id==='hx'){ const c=unhex(t.value); if(c){ const b=S.settings.bg; [b.r,b.g,b.b]=c; holdHue(); syncRgb(); paintSliders(); applySettings(); saveSoon(); } }
+  else if(t.dataset.a){ const c=unhex(accGet())||[232,130,90]; c['rgb'.indexOf(t.dataset.a)]=+t.value; accSet(hex(c)); t.closest('.sr').querySelector('b').textContent=t.value; const ah=$('ahx'); if(ah) ah.value=accGet(); paintSliders(); applySettings(); saveSoon(); }
+  else if(t.id==='ahx'){ const c=unhex(t.value); if(c){ accSet(hex(c)); syncAcc(); applySettings(); saveSoon(); } }
+  else if(t.id==='hx'){ const c=unhex(t.value); if(c){ const b=curBg(); [b.r,b.g,b.b]=c; holdHue(); syncRgb(); paintSliders(); applySettings(); saveSoon(); } }
 });
 $('set').addEventListener('change',e=>{ if(e.target.id==='appson'){ S.settings.apps.on=e.target.checked; $('appsad').classList.toggle('open',e.target.checked); renderBar(); save(); } if(e.target.dataset.an){ S.settings.ui.anim[e.target.dataset.an]=e.target.checked; applyUi(); save(); }
   if(e.target.id==='dynicon'){ S.settings.ui.dynicon=e.target.checked; save(); sendIcon(); }
@@ -95,8 +103,8 @@ $('set').addEventListener('click',e=>{
   else if(kbEl){ if(recAct) stopRec(); startRec(kbEl.dataset.kb); }
   else if(d.kc){ S.settings.keys[d.kc]=''; pushKeys(); save(); renderKeys(); }
   else if(t.id==='rk') ask('Przywrócić domyślne skróty?','Wszystkie skróty klawiszowe wrócą do ustawień fabrycznych.','Przywróć').then(ok=>{ if(ok){ S.settings.keys={...DEF.keys}; pushKeys(); save(); renderKeys(); } });
-  else if(d.sw!==undefined){ const c=SW[d.sw], rgb=hsl2rgb(c[0],c[1],c[2]); Object.assign(S.settings.bg,{r:rgb[0],g:rgb[1],b:rgb[2],hold:c[0],sat:50,bri:50}); renderSet(); applySettings(); save(); }
-  else if(d.ac){ S.settings.acc=d.ac; syncAcc(); applySettings(); save(); }
+  else if(d.sw!==undefined){ const c=SW[d.sw], rgb=hsl2rgb(c[0],c[1],c[2]); Object.assign(curBg(),{r:rgb[0],g:rgb[1],b:rgb[2],hold:c[0],sat:50,bri:50}); renderSet(); applySettings(); save(); }
+  else if(d.ac){ accSet(d.ac); syncAcc(); applySettings(); save(); }
   else if(t.id==='sx') toggleSet(false);
   else if(t.id==='pick') $('fi').click();
   else if(t.id==='rmimg'){ S.settings.img.data=''; renderSet(); applySettings(); save(); }
@@ -115,7 +123,7 @@ function loadImg(file){
 const msg=t=>{ const e=$('sst'); if(e) e.textContent=t; };
 async function exportCfg(){ try{ const p=await window.api.exportConfig(JSON.stringify({app:'arkana-browser',version:2,settings:S.settings}),t('Zapisz konfigurację')); msg(p?t('Zapisano:')+' '+p:'Anulowano.'); }catch{ msg('Brak obsługi – podmień main.js i preload.js na nowe.'); } }
 async function importCfg(){ try{ const txt=await window.api.importConfig(t('Wczytaj konfigurację')); if(!txt) return msg('Anulowano.');
-  const o=JSON.parse(txt); if(!o.settings) throw 0; S.settings=merge(DEF,normalize(o.settings)); renderSet(); applySettings(); pushKeys(); renderBar(); save(); msg('Wczytano konfigurację ✓'); }catch{ msg('Nie udało się wczytać pliku konfiguracji.'); } }
+  const o=JSON.parse(txt); if(!o.settings) throw 0; S.settings=merge(DEF,normalize(o.settings)); fixBgs(); GD_(null); renderSet(); applySettings(); pushKeys(); renderBar(); save(); msg('Wczytano konfigurację ✓'); }catch{ msg('Nie udało się wczytać pliku konfiguracji.'); } }
 function toggleSet(v){ const o=v===undefined?!$('set').classList.contains('open'):v; if(!o&&recAct) stopRec(); if(o){ toggleCl(false); renderSet(); } $('set').classList.toggle('open',o); }
 $('gear').onclick=()=>toggleSet();
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if($('cm').classList.contains('open')) closeMenu(); else{ toggleSet(false); toggleCl(false); } } });
@@ -175,6 +183,7 @@ function renderUi(){
   <h5>PRZYPIĘTE KARTY</h5><p class="hint">Gdzie wyświetlać przypięte karty. Kartę można przypiąć, przeciągając ją nad wybrany pasek.</p>${seg('pinpos',[['top','Pasek u góry'],['left','Lewy pasek pod folderami']])}
   <h5>IKONA APLIKACJI</h5><label class="ck"><input type="checkbox" id="dynicon" ${u.dynicon!==false?'checked':''}><span class="tg"></span>Ikona aplikacji w kolorach motywu</label>
   <p class="hint">Ikona Arkany na pasku zadań (także przypiętej) przyjmuje kolory motywu. Po wyłączeniu wraca oryginalna ikona. Zmiana działa od razu.</p>
+  ${fontSection()}
   <h5>KOLORY STRON</h5>${seg('pgmode',[['theme','Kolor motywu'],['gradient','Gradient kolorów'],['off','Wyłączone']])}
   <p class="hint">Kolor motywu: strony Google (np. wyszukiwarka) przyjmują kolory motywu. Gradient kolorów: Arkana pobiera kolor otwartej strony i płynnie łączy go z kolorem motywu na paskach, tak że granica między interfejsem a stroną znika (na jasnych stronach przejście jest ograniczone, żeby napisy na paskach pozostały czytelne). Wyłączone: strony wyglądają natywnie, a paski mają zwykły kolor motywu.</p>
   <h5>PANELE BOCZNE</h5>
@@ -217,9 +226,9 @@ function applyUi(){
   c.toggle('inc',INC); c.toggle('pinl',u.pinpos==='left');
   if(applyUi.pp!==undefined&&applyUi.pp!==u.pinpos&&S.cur) renderTabs(); applyUi.pp=u.pinpos;
   ['win','simple','fancy'].forEach(m=>c.toggle('wb-'+m,u.win===m)); ['simple','fancy'].forEach(m=>c.toggle('nb-'+m,u.nav===m));
-  c.toggle('round',!!u.round); c.toggle('no-asst',u.asst===false); c.toggle('no-cl',u.clb===false); c.toggle('na-btn',!u.anim.btn); c.toggle('na-fold',!u.anim.fold); c.toggle('na-tab',!u.anim.tab); c.toggle('na-panel',!u.anim.panel); c.toggle('na-apps',!u.anim.apps);
+  c.toggle('round',!!u.round); c.toggle('no-asst',u.asst===false); c.toggle('no-cl',u.clb===false); c.toggle('na-btn',!u.anim.btn); arkRotTick(); arkRotKick(); c.toggle('na-fold',!u.anim.fold); c.toggle('na-tab',!u.anim.tab); c.toggle('na-panel',!u.anim.panel); c.toggle('na-apps',!u.anim.apps);
   const ws=document.querySelectorAll('.aw'); if(ws.length){ ws.forEach(w=>{ w.__rs=0; place(w,rectOf(w)); roundSync(w); }); updateContacts(); }
-  applyPgfx();
+  applyPgfx(); applyFont();
 }
 function startRec(a){ recAct=a; held.clear(); peak.clear(); try{ window.api.pauseKeys(true); }catch{} renderKeys(); }
 function stopRec(){ recAct=null; held.clear(); peak.clear(); try{ window.api.pauseKeys(false); }catch{} }
@@ -271,8 +280,8 @@ async function finishRec(){
 const hh=i=>{ const x=Math.sin(i*12.9898)*43758.5453; return x-Math.floor(x); };
 function drawMini(g,fx,w,h,v,t){
   const A=accRgb, B=acc2Rgb, F=fgRgb;
-  const dust=()=>{ const n=4+Math.round(v*w/10); for(let i=0;i<n;i++){ const x=hh(i+1)*w, y=h+3-((t*.012*(.5+hh(i+2))+hh(i+3)*h*3)%(h+6)), r=(1+hh(i+4)*1.6)*2.6, al=(.35+.55*hh(i+5))*(.4+.6*v), c=i%2?B:F, gr=g.createRadialGradient(x,y,0,x,y,r);
-    gr.addColorStop(0,`rgba(${c},${al})`); gr.addColorStop(1,`rgba(${c},0)`); g.fillStyle=gr; g.beginPath(); g.arc(x,y,r,0,6.283); g.fill(); } };
+  const dust=()=>{ const n=4+Math.round(v*w/10), sB=glowSp(B,32), sF=glowSp(F,32); for(let i=0;i<n;i++){ const x=hh(i+1)*w, y=h+3-((t*.012*(.5+hh(i+2))+hh(i+3)*h*3)%(h+6)), r=(1+hh(i+4)*1.6)*2.6, al=(.35+.55*hh(i+5))*(.4+.6*v);
+    g.globalAlpha=al; g.drawImage(i%2?sB:sF,x-r,y-r,2*r,2*r); } g.globalAlpha=1; };   // tekstura poświaty (gradient od pełnego koloru do przezroczystości) z przezroczystością al = ten sam wygląd co gradient na cząstkę
   const waves=()=>{ for(let k=0;k<2;k++){ g.beginPath(); g.moveTo(0,h); for(let x=0;x<=w;x+=4) g.lineTo(x,h*(.62+.14*k)+Math.sin(x*.07+t*.003*(1+k*.4)+k*2)*h*(.1+.22*v)); g.lineTo(w,h); g.closePath(); g.fillStyle=`rgba(${k?B:A},${.3+.3*v})`; g.fill(); } };
   const stars=()=>{ const n=3+Math.round(v*w/8); for(let i=0;i<n;i++){ g.fillStyle=`rgba(${F},${(.2+.8*Math.abs(Math.sin(t*.003*(.5+hh(i+3))+i)))*(.4+.6*v)})`; g.beginPath(); g.arc(hh(i)*w,hh(i+9)*h,.7+hh(i+2)*.6,0,6.283); g.fill(); } };
   const aurora=()=>{ for(let k=0;k<3;k++){ const x=w*(.15+.3*k+.12*Math.sin(t*.0008+k*2)), c=[A,B,F][k], gr=g.createRadialGradient(x,h/2,0,x,h/2,h*2.2); gr.addColorStop(0,`rgba(${c},${.3+.45*v})`); gr.addColorStop(1,`rgba(${c},0)`); g.fillStyle=gr; g.fillRect(0,0,w,h); } };
@@ -280,12 +289,25 @@ function drawMini(g,fx,w,h,v,t){
   ({dust,waves,stars,aurora,rain,all:()=>{ aurora(); waves(); dust(); }})[fx]();
 }
 function mini(t){
-  requestAnimationFrame(mini);
-  if(!$('set').classList.contains('open')||t-(mini.l||0)<28) return; mini.l=t;
+  mini.r=0; if(!$('set').classList.contains('open')||document.hidden) return;   // ustawienia zamknięte: pętla stoi (wznawia ją otwarcie ustawień)
+  mini.r=requestAnimationFrame(mini); if(!fr30(mini,t)) return; mini.l=t;
+  $('set').querySelectorAll('.rg .fl:not(.plsoff)').forEach(plsPhase);   // pulsowanie suwaków w tym samym rytmie co podglądy (animacja CSS wstrzymana, klatkę wybiera opóźnienie)
+  const sr=$('set').getBoundingClientRect();
   $('set').querySelectorAll('canvas.mf').forEach(c=>{
+    const cr=c.getBoundingClientRect(); if(cr.bottom<sr.top||cr.top>sr.bottom) return;   // podgląd przewinięty poza widoczną część panelu: nie rysujemy (dorysuje się po przewinięciu)
     const w=c.clientWidth, h=c.clientHeight; if(c.width!==w) c.width=w; if(c.height!==h) c.height=h;
     const g=c.getContext('2d'); g.clearRect(0,0,w,h); const v=c.parentElement.querySelector('input').value/100; if(v<=0) return;
     g.save(); g.beginPath(); g.roundRect(0,0,w*v,h,9); g.clip(); drawMini(g,c.dataset.fx,w,h,v,t); g.restore(); });
 }
-requestAnimationFrame(mini);
+const miniKick=()=>{ if(!mini.r) mini.r=requestAnimationFrame(mini); };
+// Pulsowanie wypełnienia suwaków (animacja pls, 2,4 s). Pomiar: dowolna animacja CSS w 60 kl./s zmusza okno do składania całego obrazu 60 razy na sekundę
+// (ok. 25–30% rdzenia), niezależnie od liczby suwaków. Dlatego w ustawieniach animacja jest wstrzymana (css/app.css), a jej klatkę wybiera ujemne opóźnienie
+// ustawiane w pętli podglądów (30 kl./s): przeglądarka sama liczy wartość z tych samych klatek kluczowych i krzywej ease-in-out, a wolna zmiana jasności
+// wygląda tak samo. Suwaki przewinięte poza widoczną część panelu nie są animowane wcale. Faza = wspólny zegar (czas mod 2,4 s), więc wszystkie pulsują równo.
+let plsIO=null;
+const plsPhase=f=>{ f.style.animationDelay=(-(performance.now()%2400)).toFixed(0)+'ms'; };
+function plsWatch(){ try{ if(!plsIO) plsIO=new IntersectionObserver(es=>es.forEach(e=>{ const f=e.target; if(e.isIntersecting){ if(f.classList.contains('plsoff')){ plsPhase(f); f.classList.remove('plsoff'); } } else f.classList.add('plsoff'); }),{root:$('set')});
+  $('set').querySelectorAll('.rg .fl').forEach(f=>{ if(f._pw) return; f._pw=1; plsPhase(f); plsIO.observe(f); }); }catch{} }
+new MutationObserver(plsWatch).observe($('set'),{childList:true,subtree:true});
+miniKick(); new MutationObserver(miniKick).observe($('set'),{attributes:true,attributeFilter:['class']}); document.addEventListener('visibilitychange',miniKick);
 

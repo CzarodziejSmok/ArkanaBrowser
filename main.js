@@ -5,6 +5,7 @@ const ffm = require('./ffmpeg');
 const imp = require('./importer');
 const perms = require('./permissions'), adblock = require('./adblock'), vaultMod = require('./vault'), wl = require('./weblogin'), tbar = require('./taskbar'), adpage = require('./adblock-page'), db = require('./defaultbrowser'), pagecolor = require('./pagecolor');
 const { execFile } = require('child_process');
+const dls = require('./downloads');   // pobrane pliki, kolejka i postęp (ikona w pasku adresu)
 // Uruchomienie z kodu zrodlowego (npm start, plik .bat, electron .): js/bundle.js jest plikiem GENEROWANYM (lezy w .gitignore, nie ma go w repozytorium),
 // wiec przy kazdym starcie skladamy go od nowa z src/js. Bez tego okno ladowaloby stary bundle.js z poprzedniej wersji, a proces glowny (main.js) byłby nowy -
 // funkcje wymagajace obu stron (np. okno incognito) przestawalyby dzialac. W instalatorze (app.isPackaged) bundle jest zlozony przy budowaniu i ten kod sie nie wykonuje.
@@ -48,7 +49,28 @@ ipcMain.on('load-state', e => {
   if (inits.has(e.sender.id)) { e.returnValue = null; return; }
   try { e.returnValue = JSON.parse(fs.readFileSync(stateFile(), 'utf8')); } catch { e.returnValue = null; }
 });
-ipcMain.on('save-state', (e, s) => { if (inits.has(e.sender.id)) return; try { fs.writeFileSync(stateFile(), JSON.stringify(s)); } catch {} });
+// Zapis stanu nie blokuje procesu głównego (który obsługuje też klawisze, mysz i sieć wszystkich okien): okno przysyła gotowy tekst JSON, zapis idzie
+// asynchronicznie do pliku tymczasowego i podmienia state.json (rename), a kolejne zapisy w trakcie trwającego łączą się w jeden (zostaje najnowszy).
+// Przy zamykaniu programu ostatni stan jest dopisywany synchronicznie, więc nic nie ginie.
+let stPending = null, stBusy = false, stQuit = false;
+function stFlush() {
+  if (stBusy || stPending === null || stQuit) return;
+  const data = stPending, f = stateFile(), tmp = f + '.tmp'; stPending = null; stBusy = true;
+  const done = () => { stBusy = false; if (stQuit) app.quit(); else stFlush(); };   // zamykanie czekało na koniec zapisu: teraz kończymy (resztę dopisze stFlushSync)
+  fs.writeFile(tmp, data, err => {
+    if (err) { try { fs.writeFileSync(f, data); } catch {} return done(); }
+    fs.rename(tmp, f, e2 => { if (e2) { try { fs.writeFileSync(f, data); } catch {} } done(); });
+  });
+}
+function stFlushSync() { if (stPending === null || stBusy) return; const data = stPending; stPending = null; try { fs.writeFileSync(stateFile(), data); } catch {} }
+ipcMain.on('save-state', (e, s) => {
+  if (inits.has(e.sender.id)) return;
+  try { stPending = typeof s === 'string' ? s : JSON.stringify(s); } catch { return; }
+  stFlush();
+});
+// zamykanie programu: jeśli zapis właśnie trwa, czekamy na jego koniec (inaczej starszy zapis mógłby nadpisać nowszy), potem ostatni stan synchronicznie
+app.on('will-quit', e => { if (stBusy) { e.preventDefault(); stQuit = true; return; } stFlushSync(); });
+process.on('exit', stFlushSync);
 ipcMain.on('win-ctl', (e, a) => {
   const w = winOf(e); if (!w) return;
   if (a === 'min') w.minimize(); else if (a === 'max') (w.isMaximized() ? w.unmaximize() : w.maximize()); else if (a === 'close') w.close();
@@ -84,6 +106,15 @@ ipcMain.on('new-win', (e, p) => {
 });
 // pobieranie kursów walut (tylko wskazane hosty, przez proces główny – bez problemów z CORS)
 const HTTP_HOSTS = ['open.er-api.com', 'api.frankfurter.dev', 'translate.googleapis.com', 'api.mymemory.translated.net'];
+ipcMain.handle('screen-capture', async e => { try { const img = await e.sender.capturePage(), z = img.getSize(); return { url: img.toDataURL(), w: z.width, h: z.height }; } catch { return null; } });   // pipeta: zrzut okna
+ipcMain.handle('screen-capture-wc', async (e, id) => { try { const wc = webContents.fromId(Number(id)); if (!wc || wc.hostWebContents !== e.sender) return null; const img = await wc.capturePage(), z = img.getSize(); return { url: img.toDataURL(), w: z.width, h: z.height }; } catch { return null; } });   // pipeta: zrzut strony w karcie
+ipcMain.handle('dl-list', e => dls.visible(e.sender.id));   // lista pobranych (zwykłe okna: wspólna; incognito: tylko własne)
+ipcMain.on('dl-show', (_e, id) => dls.show(String(id)));
+ipcMain.on('dl-open', (_e, id) => dls.open(String(id)));
+ipcMain.on('dl-cancel', (_e, id) => dls.cancel(String(id)));
+ipcMain.on('dl-remove', (_e, id) => dls.remove(String(id)));
+ipcMain.handle('dl-clear', e => dls.clear(e.sender.id));
+ipcMain.handle('dl-icon', (_e, id) => dls.icon(String(id)));
 ipcMain.handle('changelog-get', () => {   // CHANGELOG.txt z folderu aplikacji, czytany przy każdym otwarciu panelu
   try { return { ok: true, text: fs.readFileSync(path.join(__dirname, 'CHANGELOG.txt'), 'utf8').replace(/^\uFEFF/, '') }; }
   catch (e) { return { ok: false, err: String(e.message || e) }; }
@@ -224,6 +255,8 @@ ipcMain.on('mouse-key', (e, m) => {
   } catch {}
 });
 
+let kpSrc = null, kpList = [];
+const keyParts = () => { if (kpSrc !== bindings) { kpSrc = bindings; kpList = Object.entries(bindings || {}).filter(([, s]) => s).map(([a, s]) => [a, String(s).split('+')]); } return kpList; };
 function onKey(e, i, win) {
   if (pausedW.has(win) || !i.code) return;
   const down = downOf(win);
@@ -233,9 +266,7 @@ function onKey(e, i, win) {
   for (const [k, t] of down) if (now - t > 4000) down.delete(k);
   down.set(keyLabel(i.code), now);
   const cur = new Set([...(i.control ? ['Ctrl'] : []), ...(i.alt ? ['Alt'] : []), ...(i.shift ? ['Shift'] : []), ...down.keys()]);
-  for (const [a, str] of Object.entries(bindings)) {
-    if (!str) continue;
-    const p = str.split('+');
+  for (const [a, p] of keyParts()) {
     if (p.length === cur.size && p.every(x => cur.has(x))) {
       e.preventDefault();
       if (i.isAutoRepeat) return;
@@ -324,7 +355,7 @@ function createWindow(o = {}) {
     delete wp.preloadURL; wp.nodeIntegration = false; wp.nodeIntegrationInSubFrames = false; wp.contextIsolation = true;
     wp.preload = params.partition === 'persist:claude' ? SHIM_PRELOAD : GUEST_PRELOAD;   // panel asystenta: tylko uzupełnienie API (logowanie Google), bez haseł
     // okno incognito: karty tylko w sesji incognito w pamięci (ustala to proces główny, strona okna nie może tego zmienić)
-    if (incWins.has(win) && params.partition !== 'persist:claude') { const p = incPartition(); wp.partition = p; params.partition = p; prepSession(require('electron').session.fromPartition(p), { adblock: true }); }
+    if (incWins.has(win) && params.partition !== 'persist:claude') { const p = incPartition(); wp.partition = p; params.partition = p; const ises = require('electron').session.fromPartition(p); prepSession(ises, { adblock: true }); dls.install(ises, true); }
   });
   win.webContents.on('did-attach-webview', (_e, wc) => {
     wc.on('before-input-event', handle); // skróty działają też, gdy fokus jest na stronie
@@ -352,6 +383,7 @@ app.whenReady().then(() => {
     const { session, safeStorage } = require('electron'), dir = app.getPath('userData');
     permStore = new perms.Store(path.join(dir, 'permissions.json')); permAsk = perms.broker(ipcMain, permStore);
     prepSession(session.defaultSession, { adblock: true });
+    dls.load(); dls.install(session.defaultSession, false);
     prepSession(session.fromPartition('persist:claude'));   // panel asystenta zostaje bez filtrowania reklam
     ipcMain.on('adblock-set', (_e, on) => { adblock.state.on = !!on; });
     ipcMain.handle('adblock-stats', () => ({ on: adblock.state.on, count: adblock.state.count }));
@@ -374,10 +406,25 @@ app.on('second-instance', (_e, argv, _cwd, data) => { openUrlInApp((data && data
 
 // ---- kolory krawędzi otwartej strony (przejście kolorów interfejsu i strony; pagecolor.js) ----
 // Okno prosi o zrzut aktywnej karty (tylko własnej: wc.hostWebContents musi być nadawcą); zrzut zmniejszamy i liczymy dominujące kolory krawędzi.
-ipcMain.handle('page-colors', async (e, id) => {
+// Zwykle zrzucamy tylko trzy wąskie pasy przy krawędziach (te same obszary, które liczy edgeColors), co daje ok. 10% pikseli całej strony.
+async function stripColors(wc, sz) {
+  const w = Math.round(sz && sz.w), h = Math.round(sz && sz.h); if (!(w > 24 && h > 24 && w < 20000 && h < 20000)) return null;
+  const sw = Math.max(1, Math.ceil(w * pagecolor.SW)), sh = Math.max(1, Math.ceil(h * pagecolor.SH)), k = Math.min(1, pagecolor.DW / w);
+  const rects = [{ x: 0, y: 0, width: w, height: sh }, { x: 0, y: 0, width: sw, height: h }, { x: w - sw, y: 0, width: sw, height: h }];
+  const imgs = await Promise.all(rects.map(r => wc.capturePage(r)));
+  const strips = [];
+  for (const img of imgs) {
+    if (!img || img.isEmpty()) return null;
+    const s = img.getSize(), small = k < 1 ? img.resize({ width: Math.max(1, Math.round(s.width * k)), height: Math.max(1, Math.round(s.height * k)), quality: 'good' }) : img, z = small.getSize();
+    strips.push({ buf: small.toBitmap(), w: z.width, h: z.height });
+  }
+  return pagecolor.stripColors(strips[0], strips[1], strips[2]);
+}
+ipcMain.handle('page-colors', async (e, id, sz) => {
   try {
     if (!Number.isInteger(id)) return null;
     const wc = webContents.fromId(id); if (!wc || wc.isDestroyed() || wc.hostWebContents !== e.sender) return null;
+    try { const r = await stripColors(wc, sz); if (r && r.c) return r; } catch {}
     const img = await wc.capturePage(); if (!img || img.isEmpty()) return null;
     const s = img.getSize(), small = s.width > 240 ? img.resize({ width: 240, quality: 'good' }) : img, z = small.getSize();
     return pagecolor.edgeColors(small.toBitmap(), z.width, z.height);

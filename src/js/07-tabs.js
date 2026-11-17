@@ -13,9 +13,11 @@ function mkView(t){
       if(isG(u)&&x.pathname==='/search'&&!x.searchParams.has('tbm')){ const m=x.searchParams.get('udm'); if(!m||m==='50'){ x.searchParams.set('udm','14'); u=x.toString(); rw=true; try{ w.loadURL(u); }catch{} } } }catch{}
     t.url=u; if(!rw) histAdd(t,u); if(T()===t) setUrlBar(); save(); };
   w.addEventListener('did-navigate',nv); w.addEventListener('did-navigate-in-page',nv);
-  w.addEventListener('page-title-updated',e=>{ t.title=e.title; histTitle(t,e.title); renderTabs(); save(); });
-  w.addEventListener('page-favicon-updated',e=>{ t.icon=e.favicons[0]; histIcon(t,t.icon); renderTabs(); save(); });
+  w.addEventListener('page-title-updated',e=>{ t.title=e.title; histTitle(t,e.title); renderTabsSoon(); save(); });
+  w.addEventListener('page-favicon-updated',e=>{ t.icon=e.favicons[0]; histIcon(t,t.icon); renderTabsSoon(); save(); });
 }
+// strony często zmieniają tytuł wiele razy pod rząd (liczniki, czaty, odtwarzacze): pasek kart przebudowujemy raz na klatkę, a nie przy każdej zmianie
+let rtRaf=0; const renderTabsSoon=()=>{ if(!rtRaf) rtRaf=requestAnimationFrame(()=>{ rtRaf=0; renderTabs(); }); };
 function setUrlBar(){
   const t=T(); if(!t||document.activeElement===url) return;
   let v=t.url||''; try{ const u=new URL(v); if(isG(v)&&u.pathname==='/search') v=u.searchParams.get('q')||v; }catch{}

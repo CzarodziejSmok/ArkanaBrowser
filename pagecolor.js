@@ -27,4 +27,24 @@ function edgeColors(buf, w, h) {
   const c = best ? [Math.round(best[1] / best[0]), Math.round(best[2] / best[0]), Math.round(best[3] / best[0])] : null;
   return { c, t: dominant(buf, w, h, ...zones[0]), l: dominant(buf, w, h, ...zones[1]), r: dominant(buf, w, h, ...zones[2]) };
 }
-module.exports = { dominant, edgeColors };
+// Te same obszary bez zrzutu całej strony: proces główny zrzuca tylko trzy pasy (góra: cała szerokość × SH wysokości, lewy i prawy: SW szerokości × cała
+// wysokość), zmniejszone w tej samej skali co pełny zrzut (DW px szerokości strony). Wynik jak edgeColors: c (wszystkie pasy razem), t, l, r.
+const SW = .03, SH = .045, DW = 240;
+function stripColors(top, left, right) {
+  const ok = s => s && s.buf && s.w > 0 && s.h > 0 && s.buf.length >= s.w * s.h * 4;
+  if (!ok(top) || !ok(left) || !ok(right)) return null;
+  const hist = new Map();
+  for (const s of [top, left, right]) {
+    const b = s.buf, n = s.w * s.h * 4;
+    for (let i = 0; i < n; i += 4) {
+      if (b[i + 3] < 200) continue;
+      const B = b[i], g = b[i + 1], r = b[i + 2], key = ((r >> 4) << 8) | ((g >> 4) << 4) | (B >> 4), e = hist.get(key);
+      if (e) { e[0]++; e[1] += r; e[2] += g; e[3] += B; } else hist.set(key, [1, r, g, B]);
+    }
+  }
+  let best = null; for (const e of hist.values()) if (!best || e[0] > best[0]) best = e;
+  const c = best ? [Math.round(best[1] / best[0]), Math.round(best[2] / best[0]), Math.round(best[3] / best[0])] : null;
+  const dom = s => dominant(s.buf, s.w, s.h, 0, 0, s.w, s.h);
+  return { c, t: dom(top), l: dom(left), r: dom(right) };
+}
+module.exports = { dominant, edgeColors, stripColors, SW, SH, DW };

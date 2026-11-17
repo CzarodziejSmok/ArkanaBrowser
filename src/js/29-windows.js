@@ -46,6 +46,25 @@ function incSparkSvg(){
     +`<path class="ihat" d="M16 49C29 42.2 43.5 39 60 39s31 3.2 44 10c-13 5.8-27.5 8.6-44 8.6S29 54.8 16 49z"/>`
     +`<g class="igl"><circle cx="46" cy="70" r="10.5"/><circle cx="74" cy="70" r="10.5"/><path d="M56.5 68.6c2.3-2.4 4.7-2.4 7 0"/></g></svg>`;
 }
+// wyrównanie pionowe napisu w logo incognito: środek zapisu „Arkana + inCognito” (wg faktycznej tuszu liter, nie ramek) leży na środku iskry w kapeluszu,
+// więc napis wystaje nad i pod logo o tyle samo. Mierzone w oknie (czcionka może się zmienić), przeliczane przy zmianie rozmiaru i po załadowaniu czcionek.
+function incAlign(){
+  const l=$('logo'); if(!l) return; const w=l.querySelector('.incw'), sp=l.querySelector('.incsp'); if(!w||!sp) return;
+  const b=w.querySelector('b'), iw=w.querySelector('.iw'); if(!b||!iw) return;
+  w.style.setProperty('--incdy','0px');
+  const sr=sp.getBoundingClientRect(), ir=iw.getBoundingClientRect(); if(!sr.height||!ir.height) return;
+  const k=sr.height/120, hat=sp.querySelector('.ihat'), rays=sp.querySelector('.isr');
+  if(!hat||!rays||!hat.getBBox) return; const hb=hat.getBBox(), rb=rays.getBBox();
+  const sTop=sr.top+(hb.y-.6)*k, sBot=sr.top+(rb.y+rb.height+3.2)*k;                 // tusz iskry: góra ronda kapelusza, dół najdłuższego promienia z zaokrąglonym końcem
+  const pr=document.createElement('i'); pr.style.cssText='display:inline-block;width:0;height:0;vertical-align:baseline'; b.appendChild(pr);
+  const base=pr.getBoundingClientRect().bottom; pr.remove();
+  const cs=getComputedStyle(b); let asc=.72*parseFloat(cs.fontSize);
+  try{ const g=document.createElement('canvas').getContext('2d'); g.font=cs.fontStyle+' '+cs.fontWeight+' '+cs.fontSize+' '+cs.fontFamily; const m=g.measureText('Arkana'); if(m.actualBoundingBoxAscent) asc=m.actualBoundingBoxAscent; }catch{}
+  const vk=ir.height/25.2, tTop=base-asc, tBot=ir.top+(21.4+3.2)*vk;                    // tusz napisu: góra „Arkana” (wg czcionki) i dół ogona „g”
+  const dy=((sTop+sBot)-(tTop+tBot))/2; w.style.setProperty('--incdy',(Math.round(dy*10)/10)+'px');
+}
+function incAlignInit(){ const l=$('logo'); if(!l||l.__ia) return; l.__ia=1; incAlign();
+  try{ new ResizeObserver(()=>incAlign()).observe(l); }catch{} try{ document.fonts&&document.fonts.ready.then(incAlign); }catch{} window.addEventListener('resize',incAlign); }
 function winState(folder){
   const f=folder||{id:uid(),name:t('Folder')+' 1',icon:'📁',tabs:[],active:null};
   if(!f.tabs.length) f.tabs.push({id:uid(),url:'',title:''});

@@ -1,6 +1,6 @@
 
 // ---------- tryb kodu: Morse i Braille (osobno dla każdego języka; chiński niedostępny - brak tabeli znaków) ----------
-const CODEMODE=(()=>{ const u=S.settings.ui, m=(u.lmode||{})[u.lang]; return (m==='morse'||m==='braille')&&u.lang!=='zh'?m:''; })();
+const CODEMODE=(()=>{ const u=S.settings.ui, m=u.cmode; return (m==='morse'||m==='braille')&&u.lang!=='zh'?m:''; })();
 const cdTab=x=>{ const o={}; x.split('|').forEach(p=>{ o[p[0]]=p.slice(2); }); return o; };
 const MRS_L=cdTab('A .-|B -...|C -.-.|D -..|E .|F ..-.|G --.|H ....|I ..|J .---|K -.-|L .-..|M --|N -.|O ---|P .--.|Q --.-|R .-.|S ...|T -|U ..-|V ...-|W .--|X -..-|Y -.--|Z --..|0 -----|1 .----|2 ..---|3 ...--|4 ....-|5 .....|6 -....|7 --...|8 ---..|9 ----.|. .-.-.-|, --..--|? ..--..|\' .----.|! -.-.--|/ -..-.|( -.--.|) -.--.-|& .-...|: ---...|; -.-.-.|= -...-|+ .-.-.|- -....-|_ ..--.-|" .-..-.|$ ...-..-|@ .--.-.|Ą .-.-|Ä .-.-|Ć -.-..|Ç -.-..|Ę ..-..|É ..-..|Ł .-..-|Ń --.--|Ñ --.--|Ó ---.|Ö ---.|Ś ...-...|Ź --..-.|Ż --..-|Ü ..--|ß ...--..|À .--.-|Å .--.-|È .-..-|Ê -..-.|¿ ..-.-|¡ --...-');
 const MRS_H=cdTab('א .-|ב -...|ג --.|ד -..|ה ---|ו .|ז --..|ח ....|ט ..-|י ..|כ -.-|ך -.-|ל .-..|מ --|ם --|נ -.|ן -.|ס -.-.|ע .---|פ .--.|ף .--.|צ .--|ץ .--|ק --.-|ר .-.|ש ...|ת -');
@@ -47,8 +47,12 @@ function applyLang(){ if(!LD&&!CODEMODE) return; document.documentElement.lang=S
   new MutationObserver(ms=>{ for(const m of ms){ if(m.type==='childList') m.addedNodes.forEach(trNode); else if(m.type==='characterData') trText(m.target); else if(m.type==='attributes') trAttr(m.target,m.attributeName); } })
     .observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['title','placeholder']}); }
 
-const save=()=>{ if(SEC) return; try{localStorage.setItem('cb-state',JSON.stringify(S))}catch{} try{window.api&&window.api.saveState&&window.api.saveState(S)}catch{}};
-window.addEventListener('beforeunload',save);
+// zapis stanu: wiele wywołań save() w krótkim czasie (np. przełączenie karty = kilka zmian naraz) łączy się w jeden zapis po 120 ms; stan jest zamieniany
+// na tekst JSON raz (wspólny dla localStorage i procesu głównego, który zapisuje go bez ponownej konwersji). Przy zamykaniu okna zapis jest natychmiastowy.
+const saveNow=()=>{ clearTimeout(saveNow.t); saveNow.t=0; if(SEC) return; let j; try{ j=JSON.stringify(S); }catch{ return; } try{localStorage.setItem('cb-state',j)}catch{} try{window.api&&window.api.saveState&&window.api.saveState(j)}catch{} };
+const save=()=>{ if(SEC||saveNow.t) return; saveNow.t=setTimeout(saveNow,120); };
+window.addEventListener('beforeunload',saveNow); window.addEventListener('pagehide',saveNow);
+document.addEventListener('visibilitychange',()=>{ if(document.hidden&&saveNow.t) saveNow(); });
 const F=()=>S.folders.find(f=>f.id===S.cur);
 const T=()=>{ const f=F(), a=f.active; return f.tabs.find(t=>t.id===a)||S.gpins.find(t=>t.id===a); };
 const isGp=id=>S.gpins.some(t=>t.id===id), findTab=id=>F().tabs.find(t=>t.id===id)||S.gpins.find(t=>t.id===id);
@@ -67,7 +71,9 @@ function gpage(c){
     const r=+m[1], g=+m[2], b=+m[3], a=m[4]===undefined?1:+m[4];
     if(a<.9||Math.max(r,g,b)-Math.min(r,g,b)>26) return null;
     const l=(r+g+b)/3; if(l>78) return null; return l<37?'bg':l<57?'panel':'line'; };
-  const run=()=>{ window.__cbq=false;
+  const run=()=>{
+    if(document.hidden&&window.__cbc.on!==false){ if(!window.__cbw){ window.__cbw=true; document.addEventListener('visibilitychange',()=>{ window.__cbw=false; run(); },{once:true}); } window.__cbq=true; return; }   // karta w tle: przekolorujemy ją dopiero, gdy stanie się widoczna (bez przeglądania całego DOM przy każdej zmianie strony w tle)
+    window.__cbq=false;
     if(window.__cbc.on===false){   // opcja wyłączona: cofamy własne zmiany kolorów (elementy są oznaczone atrybutem data-cbr)
       document.querySelectorAll('[data-cbr]').forEach(el=>{ el.style.removeProperty('background-color'); if(el.hasAttribute('data-cbrr')) el.style.removeProperty('border-radius');
         el.removeAttribute('data-cbr'); el.removeAttribute('data-cbrr'); delete el.__cbr; });

@@ -35,22 +35,25 @@ function drawFlag(cv,t){
   g.globalCompositeOperation='source-atop';
   for(let X=0;X<W;X++){ const sh=Math.max(-1,Math.min(1,slopes[X]*6)); if(Math.abs(sh)<.02) continue; g.fillStyle=sh>0?`rgba(0,0,0,${(sh*.42).toFixed(3)})`:`rgba(255,255,255,${(-sh*.3).toFixed(3)})`; g.fillRect(X,0,1,H); }
   g.globalCompositeOperation='source-over'; }
-setInterval(()=>{ const st=$('set'); if(!st||!st.classList.contains('open')) return; const lg=$('lg'); if(!lg) return; const open=lg.classList.contains('open'), lr=lg.querySelector('.lg-l').getBoundingClientRect(), t=performance.now()/1000;
+// falujące flagi: zegar działa tylko przy otwartych ustawieniach i widocznym oknie (wcześniej budził okno 30 razy na sekundę zawsze)
+let lgIv=0; const lgSync=()=>{ const on=!document.hidden&&$('set').classList.contains('open'); if(on&&!lgIv) lgIv=setInterval(lgTick,33); else if(!on&&lgIv){ clearInterval(lgIv); lgIv=0; } };
+function lgTick(){ const st=$('set'); if(!st||!st.classList.contains('open')) return; const lg=$('lg'); if(!lg) return; const open=lg.classList.contains('open'), lr=lg.querySelector('.lg-l').getBoundingClientRect(), t=performance.now()/1000;
   st.querySelectorAll('canvas.lf').forEach(c=>{ const box=c.parentElement;
     if(c.closest('.lg-l')){ if(!open) return; const r=box.getBoundingClientRect(); if(r.bottom<lr.top||r.top>lr.bottom) return; } else if(!c.offsetParent) return;
-    drawFlag(c,t); }); },33);
-const lgChips=c=>{ const m=(S.settings.ui.lmode||{})[c]||'', zh=c==='zh';
-  return `<div class="lg-m">${[['','Aa','Tekst zwykły'],['morse','·−','Kod Morse’a'],['braille','⠃','Pismo Braille’a']].map(([k,l,n])=>`<button class="lg-mb${m===k?' on':''}${zh&&k?' off':''}" data-m="${k}" title="${zh&&k?'Chiński: brak tabeli znaków, tryb niedostępny':n}" tabindex="-1">${l}</button>`).join('')}</div>`; };
+    drawFlag(c,t); }); }
+lgSync(); new MutationObserver(lgSync).observe($('set'),{attributes:true,attributeFilter:['class']}); document.addEventListener('visibilitychange',lgSync);
+const lgModes=()=>{ const m=S.settings.ui.cmode||'', zh=S.settings.ui.lang==='zh';
+  return `<div class="lg-mm">${[['','Aa','Tekst zwykły'],['morse','·−','Kod Morse’a'],['braille','⠃','Pismo Braille’a']].map(([k,l,n])=>`<button class="lg-mb${m===k?' on':''}${zh&&k?' off':''}" data-m="${k}" title="${zh&&k?'Chiński: brak tabeli znaków, tryb niedostępny':n}" tabindex="-1"><b>${l}</b><small>${n}</small></button>`).join('')}</div>`; };
 function langPicker(cur){
   cur=LORDER.includes(cur)?cur:'pl';
   const names=c=>{ const a=langName(cur,c), b=LANGS[c]; return `<div class="lg-n"><b>${esc(a)}</b>${a!==b?`<small>${esc(b)}</small>`:''}</div>`; }, fl=c=>`<div class="lg-fl"><canvas class="lf" data-f="${c}"></canvas></div>`;
-  return `<div class="lg" id="lg"><div class="lg-b" id="lgb" role="button" tabindex="0" title="Wybierz język"><div class="lg-bg"></div>${fl(cur)}${names(cur)}<em class="lg-c">▾</em></div>
-    <div class="lg-l">${LORDER.map(c=>`<div class="lg-i${c===cur?' cur':''}" role="button" tabindex="0" data-lg="${c}"${c===cur?' title="Obecnie wybrany"':''}><div class="lg-bg"><span class="lg-t"${c==='he'?' dir="rtl"':''}>${c===cur?'<u class="lg-k">✓</u>':''}${esc(LSAMPLE[c])}</span></div>${fl(c)}${names(c)}${lgChips(c)}</div>`).join('')}</div></div>`; }
+  return `<div class="lg" id="lg">${lgModes()}<div class="lg-b" id="lgb" role="button" tabindex="0" title="Wybierz język"><div class="lg-bg"></div>${fl(cur)}${names(cur)}<em class="lg-c">▾</em></div>
+    <div class="lg-l">${LORDER.map(c=>`<div class="lg-i${c===cur?' cur':''}" role="button" tabindex="0" data-lg="${c}"${c===cur?' title="Obecnie wybrany"':''}><div class="lg-bg"><span class="lg-t"${c==='he'?' dir="rtl"':''}>${c===cur?'<u class="lg-k">✓</u>':''}${esc(LSAMPLE[c])}</span></div>${fl(c)}${names(c)}</div>`).join('')}</div></div>`; }
 const lgPick=e=>{
+  const mb=e.target.closest('.lg-mb');
+  if(mb){ e.stopPropagation(); const m=mb.dataset.m; if(S.settings.ui.lang==='zh'&&m) return; if((S.settings.ui.cmode||'')===m) return; S.settings.ui.cmode=m; save(); setTimeout(()=>location.reload(),150); return; }   // jeden tryb dla każdego języka; przy zmianie języka tryb zostaje
   if(e.target.closest('#lgb')){ $('lg').classList.toggle('open'); return; }
-  const it=e.target.closest('.lg-i'); if(!it) return; const c=it.dataset.lg, cb=e.target.closest('.lg-mb');
-  if(cb){ e.stopPropagation(); const m=cb.dataset.m; if(c==='zh'&&m) return; const lm=S.settings.ui.lmode=S.settings.ui.lmode||{};
-    if(c===S.settings.ui.lang&&(lm[c]||'')===m) return; lm[c]=m; S.settings.ui.lang=c; save(); setTimeout(()=>location.reload(),150); return; }
+  const it=e.target.closest('.lg-i'); if(!it) return; const c=it.dataset.lg;
   if(c===S.settings.ui.lang){ $('lg').classList.remove('open'); return; }
   S.settings.ui.lang=c; save(); setTimeout(()=>location.reload(),150); };
 $('set').addEventListener('click',lgPick);

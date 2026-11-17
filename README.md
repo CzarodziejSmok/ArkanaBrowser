@@ -1,4 +1,4 @@
-# Arkana Browser v47
+# Arkana Browser v49.8
 1. Zainstaluj Node.js (LTS). 2. `npm install`, potem `npm start` (lub plik .bat).
 Ustawienia (⚙ na dole paska folderów, Ctrl+,): zakładki Motyw / Interfejs / Aplikacje / Historia / Skróty / System (opcje jednej funkcji zebrane pod nagłówkami). Import z innych przeglądarek (Ustawienia → System): zakładki, historia, wyszukiwarka domyślna i ciasteczka z Chrome, Edge, Opery, Brave, Vivaldi i Firefoksa (Windows; przeglądarka musi być zamknięta) lub z pliku zakładek HTML. Przycisk ChangeLog (ikona notatki) pokazuje historię wersji z pliku CHANGELOG.txt: nagłówek z liniami = to wersja niewydana, z liniami * wydana.
 Interfejs: styl przycisków okna i nawigacji, wyłączanie animacji, język (PL/EN/DE/ES/FR/HE/ZH-TW/ŚL).

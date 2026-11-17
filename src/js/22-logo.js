@@ -17,7 +17,19 @@ function arcSvg(full){
     +(full?`<g class="arot"><circle class="a-th" cx="60" cy="60" r="53.8"/><path class="a-ru" d="${ru}"/><circle class="a-th" cx="60" cy="60" r="43"/>${G.dm.map(d=>`<polygon class="a-dm" points="${P2(d)}"/>`).join('')}</g>`:`<circle class="a-th" cx="60" cy="60" r="43"/>`)
     +`<g class="arot2">${G.hex.map(h=>`<polygon class="a-hx" points="${P2(h)}"/>`).join('')}</g><circle class="a-in" cx="60" cy="60" r="33"/><path class="a-bu" d="${ry}"/></svg>`; }
 function arcInit(){ const b=document.querySelector('#brand .st'); if(b) b.outerHTML=arcSvg(false); const l=$('logo');
-  if(l) l.innerHTML=INC?incSparkSvg()+'<div class="incw"><b>Arkana</b>'+incWordSvg()+'</div>':arcSvg(true)+'<b>Arkana</b><span>.</span>'; }
+  if(l) l.innerHTML=INC?incSparkSvg()+'<div class="incw"><b>Arkana</b>'+incWordSvg()+'</div>':arcSvg(true)+'<b>Arkana</b><span>.</span>'; if(INC) incAlignInit(); arkRotKick(); }
+// Obrót kręgów w logo na stronie startowej (zewnętrzny: obrót na 90 s, heksagram: na 140 s w przeciwną stronę). Wcześniej robiła to animacja CSS, przez którą
+// całe SVG z poświatą było przerysowywane 60 razy na sekundę (ok. 40% jednego rdzenia procesora). Ruch jest tak wolny, że krok co 50 ms przesuwa runy
+// o ok. 0,2 px – wygląd i płynność bez zmian, a pracy 3× mniej. Gdy działa pętla efektów tła (08-panel.js), obrót jest aktualizowany w jej klatkach (30 kl./s). Kąt liczy czas widoczności strony startowej, obrót stoi przy ukrytej stronie startowej,
+// zminimalizowanym oknie i wyłączonych animacjach przycisków (body.na-btn – wtedy kręgi wracają do położenia wyjściowego, jak przy animation:none).
+var ARK_ROT={t:0,last:0,iv:0};
+function arkRotLive(){ return !document.hidden&&typeof home!=='undefined'&&home.style.display!=='none'&&!document.body.classList.contains('na-btn'); }
+function arkRotTick(){ if(typeof ARK_ROT==='undefined'||!ARK_ROT) return; const R=ARK_ROT, now=performance.now(), l=$('logo'), a=l&&l.querySelector('.arot'), b=l&&l.querySelector('.arot2');
+  if(R.iv&&typeof bgRaf!=='undefined'&&bgRaf){ clearInterval(R.iv); R.iv=0; }   // działa pętla tła: obrót aktualizowany w jej klatkach (bez dodatkowych klatek)
+  if(!a||!arkRotLive()){ clearInterval(R.iv); R.iv=0; R.last=0; if(a&&document.body.classList.contains('na-btn')){ R.t=0; a.style.transform=''; if(b) b.style.transform=''; } return; }
+  R.t+=R.last?Math.min(250,now-R.last):0; R.last=now;
+  a.style.transform=`rotate(${(R.t/90000*360%360).toFixed(3)}deg)`; if(b) b.style.transform=`rotate(${(-R.t/140000*360%360).toFixed(3)}deg)`; }
+function arkRotKick(){ if(typeof ARK_ROT==='undefined'||!ARK_ROT||ARK_ROT.iv||!arkRotLive()||(typeof bgRaf!=='undefined'&&bgRaf)) return; arkRotTick(); if(arkRotLive()&&$('logo')&&$('logo').querySelector('.arot')) ARK_ROT.iv=setInterval(arkRotTick,50); }
 function drawIcon(){
   const c=document.createElement('canvas'); c.width=c.height=256; const g=c.getContext('2d');
   const bg=g.createLinearGradient(0,0,256,256); bg.addColorStop(0,P.panel2); bg.addColorStop(1,P.bg);

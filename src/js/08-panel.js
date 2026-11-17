@@ -43,7 +43,7 @@ split.addEventListener('mousedown',e=>{ e.preventDefault(); document.body.classL
 
 // ---------- efekty tła ----------
 const cv=$('bg'), cx=cv.getContext('2d'); let W=0,H=0,last=0;
-new ResizeObserver(()=>{ const w=cv.clientWidth, h=cv.clientHeight; if(w===W&&h===H) return; W=cv.width=w; H=cv.height=h; draw(performance.now()); }).observe(cv);  // po zmianie rozmiaru płótno jest czyszczone, więc rysujemy od razu
+new ResizeObserver(()=>{ const w=cv.clientWidth, h=cv.clientHeight; if(w===W&&h===H) return; W=cv.width=w; H=cv.height=h; draw(performance.now()); bgKick(); }).observe(cv);  // po zmianie rozmiaru płótno jest czyszczone, więc rysujemy od razu
 const rnd=Math.random;
 const DUST=Array.from({length:140},(_,i)=>({x:rnd(),y:rnd(),r:1+rnd()*2.6,v:.00005+rnd()*.00011,p:rnd()*6.28,c:i%3}));
 const STARS=Array.from({length:120},()=>({x:rnd(),y:rnd(),r:.5+rnd()*1.1,p:rnd()*6.28,sp:.4+rnd()*1.2}));
@@ -52,8 +52,17 @@ const fxv=k=>S.settings.fx[k]/100*S.settings.fx.all/100;
 // sprite'y poświat (jedna tekstura na kolor zamiast gradientu na cząstkę i klatkę)
 const GSP=new Map();
 function glowSp(c,n){ const k=c+'|'+n; let s=GSP.get(k); if(!s){ if(GSP.size>40) GSP.clear(); s=document.createElement('canvas'); s.width=s.height=n; const x=s.getContext('2d'), m=n/2, g=x.createRadialGradient(m,m,0,m,m,m); g.addColorStop(0,`rgba(${c},1)`); g.addColorStop(1,`rgba(${c},0)`); x.fillStyle=g; x.fillRect(0,0,n,n); GSP.set(k,s); } return s; }
-let bgIdle=false, bgLast=0;
-function frame(t){ requestAnimationFrame(frame); if(t-bgLast<28) return; bgLast=t; draw(t); }   // ~30 kl./s wystarcza dla powolnych efektów
+let bgIdle=false, bgLast=0; var bgRaf=0;
+// Pętla działa tylko wtedy, gdy tło jest widoczne: strona startowa na wierzchu, okno nie jest zminimalizowane/zasłonięte i włączony jest choć jeden efekt.
+// W pozostałych przypadkach nie zostawiamy żadnego requestAnimationFrame (wcześniej pętla budziła okno 60 razy na sekundę także pod otwartą stroną).
+// Wznawiają ją: pokazanie strony startowej (styl #home), powrót okna na ekran, zmiana rozmiaru i zmiana ustawień efektów (bgKick z applySettings).
+const bgLive=()=>!document.hidden&&W>0&&home.style.display!=='none'&&['aurora','waves','stars','rain','dust'].some(k=>fxv(k)>0);
+// fr30: wspólny podział czasu na kroki 1/30 s dla wszystkich pętli ~30 kl./s (tło, podglądy w ustawieniach, ruch kolorów motywu). Pętle rysują w tych samych
+// klatkach ekranu, więc okno składa obraz 30 razy na sekundę, a nie osobno dla każdej pętli (dwie pętle przesunięte o klatkę dawały 60 składań na sekundę).
+function fr30(o,t){ const k=Math.floor(t/33.334); if(o.k30===k) return false; o.k30=k; return true; }
+function frame(t){ bgRaf=0; const live=bgLive(); if(live) bgRaf=requestAnimationFrame(frame); else arkRotKick();
+  if(live&&!fr30(frame,t)) return; bgLast=t; draw(t); if(live) arkRotTick(); }   // obrót logo jedzie na klatkach tła (gdy tło stoi, ma własny zegar: 22-logo.js)   // ~30 kl./s wystarcza dla powolnych efektów; ostatnia klatka po zatrzymaniu czyści płótno, gdy efekty wyłączono
+function bgKick(){ if(!bgRaf&&typeof home!=='undefined') bgRaf=requestAnimationFrame(frame); }
 // okno incognito: efekty tła (zorza, fale, gwiazdy, deszcz, pył) płyną wyraźnie wolniej – czas efektów biegnie INC_SLOW razy wolniej
 const INC_SLOW=.3; let vtime=0;
 function bgClock(t){ const d0=Math.min(50,(t-last)||16); last=t; if(!INC) return {t,dt:d0}; vtime+=d0*INC_SLOW; return {t:vtime,dt:d0*INC_SLOW}; }
@@ -80,7 +89,9 @@ function draw(t0){
   if(a>0){ const n=Math.ceil(DUST.length*Math.min(1,a*1.2)), sp=C.map(c=>glowSp(c,64)), ma=Math.min(1,.4+a); for(let i=0;i<n;i++){ const d=DUST[i]; d.y-=d.v*dt; if(d.y<-.02){ d.y=1.02; d.x=rnd(); }
     const x=(d.x+Math.sin(t*.0003+d.p)*.015)*W, y=d.y*H, R=d.r*5; cx.globalAlpha=(.25+.4*Math.abs(Math.sin(t*.001+d.p)))*ma; cx.drawImage(sp[d.c],x-R,y-R,2*R,2*R); } cx.globalAlpha=1; }
 }
-requestAnimationFrame(frame);
+bgKick();
+new MutationObserver(()=>{ bgKick(); arkRotKick(); }).observe(home,{attributes:true,attributeFilter:['style']});   // obrót logo: 22-logo.js
+document.addEventListener('visibilitychange',()=>{ bgKick(); arkRotKick(); });
 
 // ---------- okno dialogowe w stronie ----------
 function ask(title,text,ok='OK'){ return new Promise(res=>{

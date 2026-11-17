@@ -1,6 +1,6 @@
 {
   "name": "arkana-browser",
-  "version": "47.0.0",
+  "version": "49.8.0",
   "description": "Przeglądarka z podręcznością i customizajcą w myśli.",
   "author": "CzarodziejSmok",
   "license": "MIT",
@@ -38,6 +38,7 @@
       "ffmpeg.js",
       "updater.js",
       "importer.js",
+      "downloads.js",
       "permissions.js",
       "adblock.js",
       "adblock-page.js",

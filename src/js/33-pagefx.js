@@ -21,8 +21,9 @@ const PG_DOM="(()=>{try{const W=innerWidth,H=innerHeight,pts=[],m=new Map();for(
   +"c=c||[255,255,255];const key=c.join(',');m.set(key,(m.get(key)||0)+1);}let b=null,n=0;for(const e of m)if(e[1]>n){n=e[1];b=e[0];}return b?b.split(',').map(Number):null;}catch(e){return null;}})()";
 const pgOn=()=>S.settings.ui.pgmode==='gradient';
 function pgSet(cols){
-  const pa=unhex(P.panel)||[27,24,22], fg=unhex(P.fg)||[245,237,227], bg=unhex(P.bg)||pa; cols=cols||{}; PGF.cols=cols;
+  const pa=unhex(P.panel)||[27,24,22], fg=unhex(P.fg)||[245,237,227], bg=unhex(P.bg1||P.bg)||pa; cols=cols||{}; PGF.cols=cols;
   const c=cols.c||cols.t||cols.l||cols.r;
+  if(!c&&S.settings.bgs&&S.settings.bgs.length>1){ document.documentElement.style.setProperty('--pgC','transparent'); return; }   // wielokolorowy motyw bez koloru strony (np. ekran startowy): pasek ma przejście motywu, bez jednolitego pola
   document.documentElement.style.setProperty('--pgC',hex(pgMix(pa,Array.isArray(c)?c:bg,fg)));
 }
 function pgRefresh(){ if(PGF&&pgOn()) pgSet(PGF.cols); }   // po zmianie motywu: ten sam kolor strony, nowe kolory paska
@@ -39,7 +40,7 @@ async function pgSample(){
   try{
     const t=T(), w=t&&views[t.id]; let cols=null;
     if(w&&t.url&&home.style.display==='none'){   // strona startowa: kolor tła interfejsu
-      try{ cols=await window.api.pageColors(w.getWebContentsId()); }catch{}
+      try{ cols=await window.api.pageColors(w.getWebContentsId(),{w:w.clientWidth,h:w.clientHeight}); }catch{}   // rozmiar karty: proces główny zrzuca tylko pasy przy krawędziach
       if(!cols||!cols.c){ try{ const c=await w.executeJavaScript(PG_DOM); if(Array.isArray(c)) cols={c}; }catch{} }
     }
     if(pgOn()) pgSet(cols);

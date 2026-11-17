@@ -78,7 +78,7 @@ function openApp(id){
   w.innerHTML=`<div class="awh"><i class="ic">${a.ic}</i><span>${esc(a.n)}</span><button class="awx" title="Zamknij aplikację">×</button></div><div class="awb"></div>`+['n','s','e','w','ne','nw','se','sw'].map(d=>`<i class="rz ${d}" data-d="${d}"></i>`).join('');
   place(w,p); $('aws').appendChild(w); roundSync(w); focusWin(w);
   if(a.mount) a.mount(w.querySelector('.awb'),w);
-  w.querySelector('.awb').prepend(Object.assign(document.createElement('canvas'),{className:'afx'}));   // tło z cząsteczkami (wspólne)
+  w.querySelector('.awb').prepend(Object.assign(document.createElement('canvas'),{className:'afx'})); afxKick();   // tło z cząsteczkami (wspólne)
   if(!S.aw.open.includes(id)) S.aw.open.push(id); savePos(w); renderBar(); updateContacts();
 }
 function closeApp(id){

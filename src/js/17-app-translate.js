@@ -1,7 +1,10 @@
 // ---------- tło aplikacji: spokojne cząsteczki (wspólne dla wszystkich aplikacji) ----------
 const AFXP=Array.from({length:40},(_,i)=>({x:Math.random(),y:Math.random(),r:(1+Math.random()*1.7)*2.4,s:.012+Math.random()*.02,a:.35+Math.random()*.55,k:i%2}));
-let afxL=0;
-setInterval(()=>{ if(document.hidden) return; const cs=document.querySelectorAll('canvas.afx'); if(!cs.length) return; const now=performance.now(), dt=(afxL?Math.min(120,now-afxL):0)*(INC?INC_SLOW:1); afxL=now;
+let afxL=0; var afxIv=0;
+// zegar cząsteczek działa tylko, gdy jest otwarte choć jedno okno aplikacji i okno przeglądarki jest widoczne (zatrzymuje się sam, wznawia go otwarcie okna aplikacji)
+function afxKick(){ if(!afxIv&&!document.hidden) afxIv=setInterval(afxTick,50); }
+document.addEventListener('visibilitychange',afxKick);
+function afxTick(){ const cs=document.querySelectorAll('canvas.afx'); if(document.hidden||!cs.length){ clearInterval(afxIv); afxIv=0; return; } const now=performance.now(), dt=(afxL?Math.min(120,now-afxL):0)*(INC?INC_SLOW:1); afxL=now;
   const A=S.settings.afx, still=document.body.classList.contains('na-apps');
   if(!still) AFXP.forEach(p=>{ p.y-=p.s*dt/500; if(p.y<-.05){ p.y=1.05; p.x=Math.random(); } });
   const spF=glowSp(fgRgb,64), spA=glowSp(acc2Rgb,64);
@@ -12,7 +15,8 @@ setInterval(()=>{ if(document.hidden) return; const cs=document.querySelectorAll
     const g=cv.getContext('2d'); g.clearRect(0,0,W,H); if(k<=0) return;
     const n=Math.min(AFXP.length,Math.round(6+34*k)), al=.08+.4*k;
     for(let i=0;i<n;i++){ const p=AFXP[i], r=p.r*2.2; g.globalAlpha=p.a*al; g.drawImage(p.k?spA:spF,p.x*W-r,p.y*H-r,2*r,2*r); }
-    g.globalAlpha=1; }); },50);
+    g.globalAlpha=1; }); }
+afxKick();
 // ---------- aplikacja: tłumacz (bez logowania i opłat, wymaga internetu) ----------
 // Główne źródło: publiczny punkt końcowy tłumacza Google (bez klucza); zapasowe: MyMemory. Zapytania wykonuje proces główny.
 const TRL=['af','sq','am','ar','hy','az','eu','be','bn','bs','bg','ca','ceb','zh-CN','zh-TW','co','hr','cs','da','nl','en','eo','et','fi','fr','fy','gl','ka','de','el','gu','ht','ha','haw','iw','hi','hmn','hu','is','ig','id','ga','it','ja','jw','kn','kk','km','rw','ko','ku','ky','lo','la','lv','lt','lb','mk','mg','ms','ml','mt','mi','mr','mn','my','ne','no','ny','or','ps','fa','pl','pt','pa','ro','ru','sm','gd','sr','st','sn','sd','si','sk','sl','so','es','su','sw','sv','tl','tg','ta','tt','te','th','tr','tk','uk','ur','ug','uz','vi','cy','xh','yi','yo','zu'];

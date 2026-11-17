@@ -1,14 +1,5 @@
-ARKANA BROWSER - CHANGELOG
+﻿ARKANA BROWSER - CHANGELOG
 ==========================
-
-Jak czyta ten plik panel ChangeLog w przeglądarce (plik jest wczytywany przy każdym uruchomieniu):
-- Nagłówek wersji to trzy linie: linia ze znaków, linia z numerem i nazwą wersji, taka sama linia ze znaków.
-- Linia ze znaków = (znak równości) oznacza wersję NIEWYDANĄ, a linia ze znaków * (gwiazdka) wersję WYDANĄ.
-  Po publikacji wersji na GitHubie wystarczy zamienić w jej nagłówku obie linie z = na *.
-- Numer wersji zapisuj na początku linii nagłówka (np. 0.33 albo 0.32.1), po nim myślnik i opis.
-- Punkty zaczynają się od "- ", a dalsze wiersze punktu zaczynają się od dwóch spacji.
-- Wpisy są pisane po polsku; w innych językach interfejsu panel tłumaczy je automatycznie.
-
 
 ==========================================================================
 v1  - pierwsza wersja (Electron + odpowiedź Claude'a przez API)
@@ -896,3 +887,86 @@ v47 - Większe logo incognito, gradient bez linii granicznej i rozsuwany z panel
 - Logo okna incognito: „Arkana” i „inCognito” powiększone (napis mocniej), razem na wysokość ok. 91 px
 - Gradient kolorów: usunięta linia graniczna w kolorze motywu na wewnętrznej krawędzi pasków bocznych
 - Gradient na pasku górnym rozsuwa się razem z wysuwanymi panelami bocznymi (te same czasy i animacje)
+
+
+==========================================================================
+v48 - czcionka interfejsu, uniwersalne tryby tekstu, import/eksport notatek
+==========================================================================
+- Nowa sekcja Czcionka w Ustawieniach (lista zainstalowanych czcionek, wyszukiwarka, własna nazwa)
+- Przyciski Tekst zwykły / Morse / Braille nad wyborem języka, jeden tryb dla wszystkich języków
+- Notatnik: import plików tekstowych (.txt, .md, .csv, .json, .html i inne) oraz eksport (.txt, .md, .html, wszystkie w jednym .txt, kopia .json)
+- Okno incognito: napis „Arkana inCognito” wyrównany w pionie względem logo
+
+
+==========================================================================
+v49 - pobrane pliki, wielokolorowy motyw
+==========================================================================
+- Ikona pobranych plików obok menu: animacja startu, pierścień postępu w kolorze akcentu, cyfra przy kolejce
+- Okno „Pobrane”: ikona, nazwa, pasek i procenty, folder po zakończeniu, anulowanie, czyszczenie listy
+- Kolejka pobierania (jedno plik naraz), pliki zapisują się w folderze Pobrane systemu
+- Motyw: do 4 kolorów (kolor, nasycenie, jasność), przejścia poziome/pionowe/ukośne/od środka, 3 intensywności, podgląd, kolejność przeciąganiem
+
+
+==========================================================================
+v49.1 - ruch i przechodzenie kolorów, tryb pełnoekranowy, powtórzenia, akcent wielokolorowy, korekty
+==========================================================================
+- Ruch kolorów motywu wzdłuż osi przejścia (kierunek zależny od kształtu) oraz przechodzenie kolorów w miejscu
+- Nowy kształt „Pełny ekran”: jeden kolor na ekranie, pozostałe pokazuje ruch lub przechodzenie
+- Powtórzenia przejścia (×1–×5) i czas przejścia jednego koloru
+- Akcent: do 4 kolorów i płynne przechodzenie w czasie
+- Korekta wszystkich kolorów (jasność, nasycenie, RGB) osobno dla motywu i akcentu, z blokadą na granicach zakresu
+- Kształty „Poziomo” i „Pionowo” zamienione tak, aby ruch w dół/górę i w lewo/prawo był widoczny
+
+
+==========================================================================
+v49.2 - poprawki wielokolorowego motywu
+==========================================================================
+- Przejście kolorów obejmuje całe okno (ekran startowy, górny pasek, karty, paski boczne, panel asystenta) dzięki jednej warstwie pod interfejsem
+- Naprawione suwaki: widoczny tor suwaka koloru zielonego, suwaków korekty, powtórzeń i czasu
+
+
+==========================================================================
+v49.3 - przejście kolorów na całym oknie, paski boczne
+==========================================================================
+- Przejście kolorów obejmuje ekran startowy, górny pasek, karty, paski boczne i nagłówki (jedna warstwa pod interfejsem)
+- Rozwinięte paski boczne są nieprzezroczyste i mają to samo przejście
+- Naprawiony błąd paska folderów, przez który treść strony prześwitywała przez rozwinięty pasek
+
+
+==========================================================================
+v49.4 - kolor stron, powrót zlewania krawędzi, niestandardowy podział kolorów
+==========================================================================
+- Strony dziedziczą pierwszy kolor motywu (nie średnią); tryb „Wyłączone” znów działa
+- Tryb „Gradient kolorów”: krawędzie pasków zlewają się z kolorem strony jak dawniej, reszta pasków zachowuje przejście motywu
+- Niestandardowy podział kolorów: edytor w prostokącie o proporcjach okna, linia podąża za kursorem, podgląd, cofnij/zatwierdź (n−1 linii dla n kolorów)
+
+
+==========================================================================
+v49.5 - menu eksportu notatnika, import konfiguracji motywu
+==========================================================================
+- Notatnik: w menu ⇅ jest „Eksportuj…”, które otwiera listę formatów (z „← Wstecz”)
+- Import konfiguracji czyści szkic przejść, a test sprawdza, że eksport→import przywraca wszystkie kolory, przejścia, ruch, czasy, podziały i akcent
+
+
+==========================================================================
+v49.6 - powtórzenia w edytorze niestandardowego podziału
+==========================================================================
+- Edytor podziału: suwak powtórzeń 1–5×, podgląd na żywo i linie rysowane w każdym powtórzeniu (granica to ułamek jednego przejścia, np. 1/3 → 1/6 ekranu przy 2×)
+
+
+==========================================================================
+v49.7 - pipeta, przyciski niestandardowego podziału
+==========================================================================
+- Pipeta przy każdym kolorze motywu i akcentu: chowa ustawienia, pokazuje przeglądarkę z lupą przy kursorze, kliknięcie ustawia kolor i wraca do ustawień
+- Przyciski „Równy podział” / „Niestandardowy podział…” przeniesione pod podgląd, obok „Zastosuj”, niższe
+
+
+**************************************************************************
+v49.8 - optymalizacja wydajności
+**************************************************************************
+Obrót koła w logo i pulsowanie suwaków bez przerysowywania całego okna 60 razy na sekundę (strona startowa ok. 4× mniej pracy procesora)
+Animacje tła, podglądów efektów, flag i cząsteczek działają tylko wtedy, gdy są widoczne
+Wszystkie animacje 30 kl./s rysowane w tych samych klatkach ekranu
+Zapis stanu w tle (bez blokowania okna), łączony w serie, bezpieczny przy zamykaniu
+Kolor strony do gradientu liczony ze zrzutu samych krawędzi strony
+Mniej pracy przy zmianach tytułów kart, kartach Google w tle, blokowaniu reklam i skrótach klawiszowych

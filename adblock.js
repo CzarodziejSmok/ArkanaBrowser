@@ -24,9 +24,10 @@ function pathBlocked(url) {
 }
 const SLD = new Set(['co', 'com', 'org', 'net', 'gov', 'edu', 'ac']);
 
+// sprawdzane są kolejne końcówki nazwy (a.b.ads.com → b.ads.com → ads.com), co najmniej dwuczłonowe, bez dzielenia na tablicę przy każdym żądaniu
 function hostBlocked(host) {
-  const p = String(host || '').toLowerCase().split('.');
-  for (let i = 0; i <= p.length - 2; i++) if (SET.has(p.slice(i).join('.'))) return true;
+  let s = String(host || '').toLowerCase();
+  for (let i = s.indexOf('.'); i >= 0; i = s.indexOf('.')) { if (SET.has(s)) return true; s = s.slice(i + 1); }
   return false;
 }
 function regDomain(host) {
@@ -35,17 +36,20 @@ function regDomain(host) {
 }
 const hostOf = u => { try { return new URL(u).hostname; } catch { return ''; } };
 // czy to żądanie powinno zostać zablokowane
+// pageUrl może być funkcją: adres strony jest wtedy odczytywany tylko dla żądań do domen z listy (zwykle nie jest potrzebny); adres żądania parsujemy raz
 function shouldBlock(url, pageUrl, resourceType) {
   if (resourceType === 'mainFrame') return false;
-  if (pathBlocked(url)) return true;
-  const h = hostOf(url); if (!h || !hostBlocked(h)) return false;
-  const ph = hostOf(pageUrl); return !!ph && regDomain(ph) !== regDomain(h);
+  let x; try { x = new URL(url); } catch { return false; }
+  const h = x.hostname;
+  if (YT_HOST.test(h) && YT_PATHS.some(r => r.test(x.pathname))) return true;
+  if (!h || !hostBlocked(h)) return false;
+  const ph = hostOf(typeof pageUrl === 'function' ? pageUrl() : pageUrl); return !!ph && regDomain(ph) !== regDomain(h);
 }
 const state = { on: true, count: 0 };
 function install(ses) {
   ses.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (d, cb) => {
     if (!state.on) return cb({});
-    const page = d.referrer || (d.webContents && !d.webContents.isDestroyed() ? d.webContents.getURL() : '');
+    const page = () => d.referrer || (d.webContents && !d.webContents.isDestroyed() ? d.webContents.getURL() : '');
     if (shouldBlock(d.url, page, d.resourceType)) { state.count++; return cb({ cancel: true }); }
     cb({});
   });

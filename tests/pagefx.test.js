@@ -16,8 +16,12 @@ module.exports = async () => {
   const ec = PC.edgeColors(buf, W, H); const near = (a, b) => a && a.every((v, i) => Math.abs(v - b[i]) <= 12);
   ok(near(ec.t, [200, 30, 30]), 'góra: dominujący kolor górnego pasa'); ok(near(ec.l, [20, 40, 220]), 'lewa krawędź'); ok(near(ec.r, [30, 200, 60]), 'prawa krawędź');
   const clear = Buffer.alloc(W * H * 4); eq(PC.edgeColors(clear, W, H), { c: null, t: null, l: null, r: null }, 'przezroczysty zrzut: brak kolorów'); eq(PC.edgeColors(Buffer.alloc(10), W, H), null, 'za krótki bufor odrzucony'); eq(PC.edgeColors(buf, 4, 4), null, 'zbyt mały obraz odrzucony');
+  { const crop = (x0, y0, w, h) => { const b = Buffer.alloc(w * h * 4); for (let y = 0; y < h; y++) buf.copy(b, y * w * 4, ((y0 + y) * W + x0) * 4, ((y0 + y) * W + x0 + w) * 4); return { buf: b, w, h }; };
+    eq(PC.stripColors(crop(0, 0, W, 3), crop(0, 0, 3, H), crop(W - 3, 0, 3, H)), ec, 'zrzut trzech pasów daje ten sam wynik co pełny zrzut (te same obszary)');
+    eq(PC.stripColors(null, crop(0, 0, 3, H), crop(W - 3, 0, 3, H)), null, 'brak pasa: wynik pusty (proces główny robi wtedy pełny zrzut)');
+    ok(/stripColors\(wc, sz\)/.test(rd('main.js')) && /await wc\.capturePage\(\); if \(!img/.test(rd('main.js')), 'proces główny: najpierw trzy pasy, w razie błędu pełny zrzut'); }
   // ---- główny proces: zabezpieczenia ----
-  const main = rd('main.js'); ok(/ipcMain\.handle\('page-colors'/.test(main) && /wc\.hostWebContents !== e\.sender/.test(main) && /Number\.isInteger\(id\)/.test(main), 'proces główny: zrzut tylko własnej karty okna i tylko dla poprawnego identyfikatora'); ok(/pageColors: id => ipcRenderer\.invoke\('page-colors', id\)/.test(rd('preload.js')), 'preload udostępnia pageColors');
+  const main = rd('main.js'); ok(/ipcMain\.handle\('page-colors'/.test(main) && /wc\.hostWebContents !== e\.sender/.test(main) && /Number\.isInteger\(id\)/.test(main), 'proces główny: zrzut tylko własnej karty okna i tylko dla poprawnego identyfikatora'); ok(/pageColors: \(id, sz\) => ipcRenderer\.invoke\('page-colors', id, sz\)/.test(rd('preload.js')), 'preload udostępnia pageColors');
   // jeden kolor strony (c) z trzech krawędzi razem
   { const mk = (top, side) => { const bf = Buffer.alloc(W * H * 4), pu = (x, y, c) => { const i = (y * W + x) * 4; bf[i] = c[2]; bf[i + 1] = c[1]; bf[i + 2] = c[0]; bf[i + 3] = 255; };
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) pu(x, y, [245, 245, 245]); for (let y = 0; y < 3; y++) for (let x = 0; x < W; x++) pu(x, y, top); if (side) for (let y = 0; y < H; y++) for (let x = 0; x < 3; x++) { pu(x, y, side); pu(W - 1 - x, y, side); } return PC.edgeColors(bf, W, H); };
