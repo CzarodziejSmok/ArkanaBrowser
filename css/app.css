@@ -1023,6 +1023,7 @@ body.na-btn .rpl{display:none}
 .fnt-b:hover{background:var(--panel2)}.fnt-b.on{border-color:var(--acc);background:var(--panel2)}
 .fnt-b small{font:10px "Segoe UI",sans-serif;color:var(--mut);flex:none}
 .fnt-r{display:flex;gap:6px;margin-top:8px}.fnt-r input{flex:1;min-width:0}
+.fnt-w{display:flex;gap:4px;align-items:stretch}.fnt-w .fnt-b{flex:1;min-width:0}.fnt-x{flex:none;width:30px;border:1px solid transparent;border-radius:7px;background:none;color:var(--mut);font-size:17px;cursor:pointer}.fnt-x:hover{background:var(--panel2);color:var(--fg)}
 .nt-io{position:absolute;right:8px;top:44px;display:flex;flex-direction:column;gap:2px;min-width:200px;padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.5);opacity:0;pointer-events:none;transform:translateY(-4px);transition:.15s;z-index:5}
 .nt-io.open{opacity:1;pointer-events:auto;transform:none}
 .nt .nt-io button{height:auto;width:auto;text-align:left;border:0;background:none;border-radius:6px;padding:7px 10px;font-size:13px;color:var(--fg);cursor:pointer}
@@ -1238,6 +1239,7 @@ body.na-fold #pgframe{transition-duration:0s,.28s}body.na-apps #pgframe{transiti
   -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 var(--pgTH,84px)),linear-gradient(90deg,transparent 0,#000 var(--pgLW,52px),#000 calc(100% - var(--pgRW,52px)),transparent 100%);
   mask-image:linear-gradient(180deg,transparent 0,#000 var(--pgTH,84px)),linear-gradient(90deg,transparent 0,#000 var(--pgLW,52px),#000 calc(100% - var(--pgRW,52px)),transparent 100%);
   -webkit-mask-composite:source-in;mask-composite:intersect}
+body.pgoff #left webview{background:#fff}
 body.pgb{background:transparent}
 body.pgb #pgframe{display:block}
 body.pgb #bar,body.pgb #tabrow,body.pgb #pins{background:transparent}

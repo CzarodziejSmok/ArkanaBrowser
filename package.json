@@ -1,6 +1,6 @@
 {
   "name": "arkana-browser",
-  "version": "49.8.0",
+  "version": "49.9.0",
   "description": "Przeglądarka z podręcznością i customizajcą w myśli.",
   "author": "CzarodziejSmok",
   "license": "MIT",
@@ -45,6 +45,7 @@
       "taskbar.js",
       "defaultbrowser.js",
       "pagecolor.js",
+      "fonts.js",
       "vault.js",
       "weblogin.js",
       "wv-preload.js",
@@ -53,6 +54,7 @@
       "css/**/*",
       "js/preboot.js",
       "js/bundle.js",
+      "js/apps.js",
       "icon.ico",
       "icon.png",
       "package.json",

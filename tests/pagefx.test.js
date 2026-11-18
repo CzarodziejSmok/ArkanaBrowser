@@ -103,4 +103,20 @@ module.exports = async () => {
   gctx.gp({ ...col, on: true }); eq([a.props['background-color'], a.attrs['data-cbr'], b.props['background-color']], ['#101010', '1', undefined], 'włączone: ciemna powierzchnia dostaje kolor motywu i znacznik, jasna zostaje'); ok(a.props['border-radius'] === 'inherit' && a.attrs['data-cbrr'] === '1', 'zaokrąglenie dziedziczone i oznaczone');
   gctx.gp({ ...col, on: false }); eq([a.props['background-color'], a.props['border-radius'], 'data-cbr' in a.attrs, 'data-cbrr' in a.attrs], [undefined, undefined, false, false], 'wyłączone: zmiany cofnięte (kolor, zaokrąglenie i znaczniki)');
   gctx.gp({ ...col, on: true }); eq(a.props['background-color'], '#101010', 'ponowne włączenie koloruje ponownie');
+
+  // ---- v49.9: poprawki „Wyłączone” i gradientu ----
+  // (a) wyścig insertCSS: kilka wywołań injG pod rząd nie może zostawić stylu, którego nie da się usunąć
+  { const w = { live: new Set(), n: 0, getURL: () => 'https://www.google.com/search?q=x', insertCSS: async () => { await tick(8); const k = 'k' + (++w.n); w.live.add(k); return k; }, removeInsertedCSS: async k => { await tick(3); if (!w.live.delete(k)) throw new Error('brak klucza'); }, executeJavaScript: async () => { await tick(2); } };
+    const g = mkG(true); g.inj(w); g.inj(w); g.inj(w); await tick(120); eq(w.live.size, 1, 'trzy szybkie wywołania: dokładnie jeden aktywny styl (bez wycieku kluczy)');
+    g.c.S.settings.ui.pgmode = 'off'; g.inj(w); g.inj(w); await tick(120); eq(w.live.size, 0, 'tryb „Wyłączone” po serii wywołań: żaden styl nie zostaje na stronie');
+    g.c.S.settings.ui.pgmode = 'theme'; g.inj(w); g.c.S.settings.ui.pgmode = 'off'; g.inj(w); await tick(120); eq(w.live.size, 0, 'przełączenie włącz→wyłącz w trakcie wstawiania: stan końcowy zgodny z ustawieniem'); }
+  // (b) gradient: odświeżanie nie zależy od document.hasFocus() (w oknie z <webview> fokus jest w stronie, więc zwraca false)
+  { const e = mkEnv({ pgmode: 'gradient' }, undefined, c => { c.document.hasFocus = () => false; }); e.p.applyPgfx(); await tick(); const n0 = e.calls.filter(x => x === 7).length; e.intervals[0].f(); await tick(); ok(e.calls.filter(x => x === 7).length > n0, 'zegar odświeżania próbkuje kolor strony także gdy fokus jest w stronie'); }
+  // (c) gradient: zawieszony zrzut nie blokuje odświeżania na stałe
+  { let n = 0, tm = []; const e = mkEnv({ pgmode: 'gradient' }, undefined, c => { c.window.api.pageColors = () => { n++; return new Promise(() => {}); }; c.__js = [10, 20, 30]; c.setTimeout = (f, ms) => { tm.push({ f, ms }); return tm.length; }; });
+    e.p.pgSample(); await tick(); eq(n, 1, 'zrzut rozpoczęty'); const hung = tm.find(x => x.ms === 1800); ok(!!hung, 'zrzut ma limit czasu'); hung.f(); await tick(); ok(e.calls.includes('js'), 'po limicie próbujemy odczytu z DOM strony'); const to2 = tm.filter(x => x.ms === 1500); if (to2.length) to2[0].f(); await tick(); ok(/^#/.test(e.props['--pgC']), 'kolor ustawiony mimo zawieszonego zrzutu (' + e.props['--pgC'] + ')');
+    e.p.pgSample(); await tick(); eq(n, 2, 'kolejna próbka rusza (znacznik zajętości zwolniony)'); }
+  // (d) „Wyłączone” zdejmuje też kolor motywu spod strony (klasa pgoff), pozostałe tryby nie
+  for (const [mode, want] of [['off', true], ['theme', false], ['gradient', false]]) { const e = mkEnv({ pgmode: mode }); e.p.applyPgfx(); eq(e.cls.has('pgoff'), want, 'klasa pgoff w trybie „' + mode + '”'); }
+  ok(/body\.pgoff #left webview\{background:#fff\}/.test(rd('css/app.css')), 'CSS: w trybie „Wyłączone” puste tło pod stroną jest natywne');
 };

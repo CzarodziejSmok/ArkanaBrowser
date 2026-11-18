@@ -1,4 +1,4 @@
-# Arkana Browser v49.8
+# Arkana Browser v49.9
 1. Zainstaluj Node.js (LTS). 2. `npm install`, potem `npm start` (lub plik .bat).
 Ustawienia (⚙ na dole paska folderów, Ctrl+,): zakładki Motyw / Interfejs / Aplikacje / Historia / Skróty / System (opcje jednej funkcji zebrane pod nagłówkami). Import z innych przeglądarek (Ustawienia → System): zakładki, historia, wyszukiwarka domyślna i ciasteczka z Chrome, Edge, Opery, Brave, Vivaldi i Firefoksa (Windows; przeglądarka musi być zamknięta) lub z pliku zakładek HTML. Przycisk ChangeLog (ikona notatki) pokazuje historię wersji z pliku CHANGELOG.txt: nagłówek z liniami = to wersja niewydana, z liniami * wydana.
 Interfejs: styl przycisków okna i nawigacji, wyłączanie animacji, język (PL/EN/DE/ES/FR/HE/ZH-TW/ŚL).
@@ -33,3 +33,8 @@ Karty i foldery: przeciągnij, by zmienić kolejność; wyciągnij poza pasek i 
 - `css/app.css` to style, `js/preboot.js` mały skrypt startowy, `wv-preload.js` skrypt wstrzykiwany do kart (hasła, zoom kółkiem).
 - Proces główny: `main.js`, `permissions.js` (zgody stron), `vault.js` (sejf haseł), `adblock.js` (blokowanie reklam), `weblogin.js` (logowanie Google i klucze dostępu), `importer.js` (import z innych przeglądarek), `updater.js`.
 - `npm test` uruchamia testy jednostkowe z katalogu `tests/` (bez dodatkowych pakietów). `index.html` ma politykę CSP: bez skryptów wbudowanych i bez `onclick=` w kodzie HTML.
+
+## v49.9
+- Panel aplikacji i gry jest modułem opcjonalnym (`js/apps.js`): wyłączony w Ustawienia → System → Moduły (lub Ustawienia → Aplikacje) nie jest wczytywany przy starcie. Włączenie działa od razu.
+- Czcionki: lista czcionek systemu Windows jest czytana z plików czcionek (także tych zainstalowanych tylko dla użytkownika), a własne czcionki (TTF, OTF, TTC, WOFF, WOFF2) można dodać do samej Arkany; „Odśwież listę” wykrywa nowo zainstalowane.
+- Kolory stron: „Wyłączone” faktycznie usuwa kolorowanie (naprawiony wyciek stylu), a gradient nie zawiesza się po nieudanym zrzucie strony i działa, gdy fokus jest w stronie.

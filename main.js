@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const ffm = require('./ffmpeg');
 const imp = require('./importer');
-const perms = require('./permissions'), adblock = require('./adblock'), vaultMod = require('./vault'), wl = require('./weblogin'), tbar = require('./taskbar'), adpage = require('./adblock-page'), db = require('./defaultbrowser'), pagecolor = require('./pagecolor');
+const perms = require('./permissions'), adblock = require('./adblock'), vaultMod = require('./vault'), wl = require('./weblogin'), tbar = require('./taskbar'), adpage = require('./adblock-page'), db = require('./defaultbrowser'), pagecolor = require('./pagecolor'), fontsMod = require('./fonts');
 const { execFile } = require('child_process');
 const dls = require('./downloads');   // pobrane pliki, kolejka i postęp (ikona w pasku adresu)
 // Uruchomienie z kodu zrodlowego (npm start, plik .bat, electron .): js/bundle.js jest plikiem GENEROWANYM (lezy w .gitignore, nie ma go w repozytorium),
@@ -430,6 +430,21 @@ ipcMain.handle('page-colors', async (e, id, sz) => {
     return pagecolor.edgeColors(small.toBitmap(), z.width, z.height);
   } catch { return null; }
 });
+
+// ---- czcionki interfejsu (fonts.js): czcionki systemu (odczyt z plików) i czcionki dodane do przeglądarki ----
+// Okno nie podaje ścieżek: wybiera je użytkownik w oknie dialogowym, a dodane czcionki są identyfikowane własnym id (zob. fonts.js).
+const fontStore = fontsMod.store(baseData);
+let sysFonts = null, sysFontsP = null;
+const sysFontList = force => { if (force) { sysFonts = null; sysFontsP = null; } if (sysFonts) return Promise.resolve(sysFonts);
+  return sysFontsP || (sysFontsP = fontsMod.listSystem().then(l => { sysFonts = l; sysFontsP = null; return l; }).catch(() => { sysFontsP = null; return []; })); };
+ipcMain.handle('fonts-list', async (_e, mode) => mode === 'user' ? { sys: null, user: fontStore.list() } : { sys: await sysFontList(mode === 'refresh'), user: fontStore.list() });   // 'user': tylko dodane czcionki (start), '' – też system (otwarcie sekcji), 'refresh' – ponowny odczyt systemu
+ipcMain.handle('fonts-add', async e => {
+  const r = await dialog.showOpenDialog(winOf(e), { title: 'Dodaj czcionkę do Arkany', properties: ['openFile', 'multiSelections'], filters: [{ name: 'Czcionki (TTF, OTF, TTC, WOFF, WOFF2)', extensions: ['ttf', 'otf', 'ttc', 'otc', 'woff', 'woff2'] }] });
+  if (r.canceled || !r.filePaths.length) return { added: [], skipped: [] };
+  return fontStore.add(r.filePaths);
+});
+ipcMain.handle('fonts-remove', (_e, id) => fontStore.remove(String(id)));
+ipcMain.handle('fonts-read', (_e, id) => { const b = fontStore.read(String(id)); return b ? new Uint8Array(b) : null; });
 
 // ---- przeglądarka domyślna (szczegóły w defaultbrowser.js) ----
 const dbOpts = () => ({ exe: process.execPath, appPath: app.getAppPath(), packaged: app.isPackaged, icon: ICON, execFile, description: 'Arkana Browser' });

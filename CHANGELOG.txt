@@ -970,3 +970,12 @@ Wszystkie animacje 30 kl./s rysowane w tych samych klatkach ekranu
 Zapis stanu w tle (bez blokowania okna), łączony w serie, bezpieczny przy zamykaniu
 Kolor strony do gradientu liczony ze zrzutu samych krawędzi strony
 Mniej pracy przy zmianach tytułów kart, kartach Google w tle, blokowaniu reklam i skrótach klawiszowych
+
+
+**************************************************************************
+v49.9 - moduły, czcionki, kolory stron
+**************************************************************************
+- Panel aplikacji i gry to moduł opcjonalny: wyłączony nie jest wczytywany przy starcie (Ustawienia → System → Moduły)
+- Czcionki: lista czcionek zainstalowanych w systemie Windows i możliwość dodania własnych czcionek do przeglądarki
+- Naprawa: „Wyłączone” w kolorach stron faktycznie usuwa kolorowanie stron Google
+- Naprawa: tryb gradientu odświeża się także podczas pracy na stronie i nie zawiesza się po nieudanym zrzucie

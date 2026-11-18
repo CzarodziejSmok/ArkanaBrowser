@@ -15,7 +15,7 @@ const major = String(pk.version).split('.')[0], vm1 = jsAll.match(/const VERSION
 if (!vm1 || vm1[1] !== major) err(`VERSION w index.html (${vm1 ? 'v' + vm1[1] : 'brak'}) nie zgadza się z wersją ${pk.version}`); else ok('VERSION w index.html zgodna');
 if (!new RegExp('^# Arkana Browser v' + major + '\\b').test(read('README.md'))) err('nagłówek README.md powinien zaczynać się od „# Arkana Browser v' + major + '”'); else ok('README zgodny');
 // 2) pakowanie: każdy plik wymagany przez kod musi być na liście build.files
-const files = (pk.build && pk.build.files) || [], need = new Set(['main.js', 'preload.js', 'index.html', 'package.json', 'CHANGELOG.txt', 'css/app.css', 'js/preboot.js', 'js/bundle.js', 'wv-preload.js']);
+const files = (pk.build && pk.build.files) || [], need = new Set(['main.js', 'preload.js', 'index.html', 'package.json', 'CHANGELOG.txt', 'css/app.css', 'js/preboot.js', 'js/bundle.js', 'js/apps.js', 'wv-preload.js']);
 const packed = f => files.includes(f) || files.some(p => p.endsWith('/**/*') && f.startsWith(p.slice(0, -4)));
 for (const f of ['main.js', 'updater.js']) for (const m of read(f).matchAll(/require\('\.\/([\w.-]+)'\)/g)) need.add(m[1].endsWith('.js') || m[1].endsWith('.json') ? m[1] : m[1] + '.js');
 for (const f of need) { if (!fs.existsSync(path.join(__dirname, f))) err('brak pliku ' + f); else if (!packed(f)) err(f + ' nie jest na liście build.files w package.json (instalator go pominie!)'); }
@@ -43,7 +43,7 @@ try {
   const pm = rows.filter(r => r.some(c => ph(c) !== ph(r[0]))).map(r => r[0]); if (pm.length) err('LROWS: niezgodne {placeholdery}: ' + pm.join(' | '));
   ok('tłumaczenia: ' + rows.length + ' wierszy');
 } catch (e) { err('LROWS: ' + e.message); }
-const names = [...js.matchAll(/^(?:const|let|function|class|async function)\s+([A-Za-z_$][\w$]*)/gm)].map(m => m[1]), dn = [...new Set(names.filter((n, i) => names.indexOf(n) !== i))];
+const names = [...js.matchAll(/^(?:const|let|function|class|async function)\s+([A-Za-z_$][\w$]*)/gm)].map(m => m[1]), dn = [...new Set(names.filter((n, i) => names.indexOf(n) !== i && !bundler.STUBS.includes(n)))];   // zaślepki rdzenia (25-modules.js) celowo mają nazwy funkcji modułu aplikacji
 if (dn.length) err('zduplikowane nazwy globalne: ' + dn.join(', ')); else ok('brak kolizji nazw globalnych');
 // 5) most preload ↔ proces główny
 const pre = read('preload.js'), main = ['main.js', 'updater.js', 'permissions.js', 'vault.js'].map(read).join('\n');
