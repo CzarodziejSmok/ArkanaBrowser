@@ -92,7 +92,7 @@ $('set').addEventListener('input',e=>{
   else if(t.id==='ahx'){ const c=unhex(t.value); if(c){ accSet(hex(c)); syncAcc(); applySettings(); saveSoon(); } }
   else if(t.id==='hx'){ const c=unhex(t.value); if(c){ const b=curBg(); [b.r,b.g,b.b]=c; holdHue(); syncRgb(); paintSliders(); applySettings(); saveSoon(); } }
 });
-$('set').addEventListener('change',e=>{ if(e.target.id==='appson'){ S.settings.apps.on=e.target.checked; $('appsad').classList.toggle('open',e.target.checked); renderBar(); save(); } if(e.target.dataset.an){ S.settings.ui.anim[e.target.dataset.an]=e.target.checked; applyUi(); save(); }
+$('set').addEventListener('change',e=>{ if(e.target.id==='appson'){ const ad=$('appsad'); if(ad) ad.classList.toggle('open',e.target.checked); appsSet(e.target.checked); } if(e.target.dataset.an){ S.settings.ui.anim[e.target.dataset.an]=e.target.checked; applyUi(); save(); }
   if(e.target.id==='dynicon'){ S.settings.ui.dynicon=e.target.checked; save(); sendIcon(); }
   if(e.target.id==='lng'){ S.settings.ui.lang=e.target.value; save(); setTimeout(()=>location.reload(),150); } if(e.target.id==='adv'){ S.settings.adv=e.target.checked; $('set').querySelector('.ad').classList.toggle('open',e.target.checked); save(); } if(e.target.id==='fi'&&e.target.files[0]) loadImg(e.target.files[0]); });
 $('set').addEventListener('click',e=>{
@@ -209,6 +209,9 @@ function renderSysTab(){
   const u=S.settings.ui;
   $('set').innerHTML=`<div class="sh"><b>⚙ Ustawienia</b><button id="sx">×</button></div>${tabsHtml()}
   <h5>JĘZYK</h5>${langPicker(u.lang)}<p class="hint">Zmiana języka odświeża interfejs.</p><p class="hint">Morse i Braille zamieniają tekst interfejsu w danym języku na kod (uproszczone tabele, bez skrótów). Dotyczy tylko interfejsu Arkany, nie stron internetowych. Zmiana odświeża aplikację.</p>
+  <h5>MODUŁY</h5>
+  <label class="ck"><input type="checkbox" id="appson" ${S.settings.apps.on?'checked':''}><span class="tg"></span>Panel aplikacji i gry</label>
+  <p class="hint">Kalkulator, notatnik, zegar, konwertery, zmieniacz formatów, tłumacz, gry i pływające okna. Wyłączony moduł nie jest ładowany przy starcie: nie zajmuje pamięci i nie działa w tle. Włączenie działa od razu, a pełna oszczędność po wyłączeniu następuje po ponownym uruchomieniu.</p>
   <h5>AKTUALIZACJE</h5><div id="updbox"></div>
   <label class="ck"><input type="checkbox" id="upauto" ${S.settings.upd.auto?'checked':''}><span class="tg"></span>Sprawdzaj aktualizacje automatycznie</label>
   <label class="ck"><input type="checkbox" id="updl" ${S.settings.upd.dl?'checked':''}><span class="tg"></span>Pobieraj aktualizacje automatycznie</label>

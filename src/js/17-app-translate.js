@@ -20,23 +20,7 @@ afxKick();
 // ---------- aplikacja: tłumacz (bez logowania i opłat, wymaga internetu) ----------
 // Główne źródło: publiczny punkt końcowy tłumacza Google (bez klucza); zapasowe: MyMemory. Zapytania wykonuje proces główny.
 const TRL=['af','sq','am','ar','hy','az','eu','be','bn','bs','bg','ca','ceb','zh-CN','zh-TW','co','hr','cs','da','nl','en','eo','et','fi','fr','fy','gl','ka','de','el','gu','ht','ha','haw','iw','hi','hmn','hu','is','ig','id','ga','it','ja','jw','kn','kk','km','rw','ko','ku','ky','lo','la','lv','lt','lb','mk','mg','ms','ml','mt','mi','mr','mn','my','ne','no','ny','or','ps','fa','pl','pt','pa','ro','ru','sm','gd','sr','st','sn','sd','si','sk','sl','so','es','su','sw','sv','tl','tg','ta','tt','te','th','tr','tk','uk','ur','ug','uz','vi','cy','xh','yi','yo','zu'];
-const TRFIX={iw:'he',jw:'jv'};   // kody Google -> kody ISO (nazwy języków, MyMemory)
-function trChunks(text,MAX){ const out=[], enc=s=>encodeURIComponent(s).length; let cur='';
-  const push=s=>{ if(cur&&enc(cur+s)>MAX){ out.push(cur); cur=''; } cur+=s; };
-  text.split(/(?<=\n)/).forEach(line=>{ if(enc(line)<=MAX) return push(line);
-    (line.match(/[^.!?。！？]*[.!?。！？]+\s*|[^.!?。！？]+$/g)||[line]).forEach(sen=>{ if(enc(sen)<=MAX) return push(sen); for(let i=0;i<sen.length;i+=Math.floor(MAX/9)) push(sen.slice(i,i+Math.floor(MAX/9))); }); });
-  if(cur) out.push(cur); return out; }
-const trErr=(r,svc)=>{ const m=(r&&r.err)||'net', e=new Error(m); e.svc=svc||/^http /.test(m)||m==='host'; return e; };
-async function trGtx(chunk,sl,tl){
-  const r=await window.api.httpGet(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(chunk)}`); if(!r||!r.ok) throw trErr(r);
-  try{ const j=JSON.parse(r.body); return {text:j[0].map(s=>s[0]||'').join(''),det:j[2]||''}; }catch{ throw trErr(null,true); } }
-async function trMym(chunk,sl,tl){
-  const f=c=>TRFIX[c]||c, r=await window.api.httpGet(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=${encodeURIComponent((sl==='auto'?'Autodetect':f(sl))+'|'+f(tl))}`); if(!r||!r.ok) throw trErr(r);
-  try{ const j=JSON.parse(r.body); if(+j.responseStatus!==200) throw 0; return j.responseData.translatedText; }catch{ throw trErr(null,true); } }
-async function trTranslate(text,sl,tl){
-  try{ const parts=[]; let det=''; for(const c of trChunks(text,3000)){ const r=await trGtx(c,sl,tl); parts.push(r.text); det=det||r.det; } return {text:parts.join(''),det}; }
-  catch(e){ if(!e.svc) throw e;   // błąd samej usługi -> spróbuj zapasowej; brak sieci -> przerwij
-    const parts=[]; for(const c of trChunks(text,450)) parts.push(await trMym(c,sl,tl)); return {text:parts.join(''),det:''}; } }
+// (v49.9) TRFIX, trChunks, trGtx, trMym i trTranslate są teraz w 25-shared.js (rdzeń): korzysta z nich też lista zmian (23-changelog.js), która działa bez modułu aplikacji.
 function mountTr(el,w){
   const LC=S.settings.ui.lang, L=IL();
   const dflt={pl:'pl',szl:'pl',en:'en',de:'de',es:'es',fr:'fr',he:'iw',zh:'zh-TW'}[LC]||'en';

@@ -94,7 +94,13 @@ function gpage(c){
 const scrollCss=()=>`::-webkit-scrollbar{width:10px!important;height:10px!important}::-webkit-scrollbar-track{background:transparent!important}::-webkit-scrollbar-thumb{background:${P.mut}66!important;border-radius:10px!important;border:2px solid transparent!important;background-clip:content-box!important}::-webkit-scrollbar-thumb:hover{background:${P.acc}!important;background-clip:content-box!important}::-webkit-scrollbar-corner{background:transparent!important}`;
 function injS(w){ try{ Promise.resolve(w._sk&&w.removeInsertedCSS(w._sk)).catch(()=>{}).then(()=>w.insertCSS(scrollCss())).then(k=>{w._sk=k}).catch(()=>{}); }catch{} }
 // kolory stron Google w kolorach motywu (Ustawienia → Interfejs → Kolory stron → „Kolor motywu”; domyślnie włączone); po wyłączeniu usuwamy style i przywracamy natywne kolory
-function injG(w){ try{ if(!isG(w.getURL())) return; const on=S.settings.ui.pgmode==='theme';
-  Promise.resolve(w._ck&&w.removeInsertedCSS(w._ck)).catch(()=>{}).then(()=>{ w._ck=null; return on?w.insertCSS(gcss()):null; }).then(k=>{ w._ck=k||null; }).catch(()=>{});
-  w.executeJavaScript(`(${gpage.toString()})(${JSON.stringify({bg:P.gbg,panel:P.gpanel,line:P.gline,on})})`).catch(()=>{}); }catch{} }
+// v49.9: wywołania są szeregowane (w._gq) i stan („włączone?”) jest czytany dopiero w chwili wykonania. Wcześniej dwa wywołania blisko siebie (dom-ready, zmiana ustawień,
+// zmiana trybu) wstawiały CSS dwa razy, a klucz pierwszego ginął – takiego stylu nie dało się już usunąć i „Wyłączone” nie wyłączało kolorowania.
+function injG(w){ try{ if(!isG(w.getURL())) return;
+  w._gq=(w._gq||Promise.resolve()).then(async()=>{
+    const on=S.settings.ui.pgmode==='theme';
+    if(w._ck){ const k=w._ck; w._ck=null; try{ await w.removeInsertedCSS(k); }catch{} }
+    if(on){ try{ w._ck=await w.insertCSS(gcss()); }catch{} }
+    try{ await w.executeJavaScript(`(${gpage.toString()})(${JSON.stringify({bg:P.gbg,panel:P.gpanel,line:P.gline,on})})`); }catch{}
+  }).catch(()=>{}); }catch{} }
 

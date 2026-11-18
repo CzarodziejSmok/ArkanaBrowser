@@ -1,7 +1,6 @@
 // ---------- aplikacja: zegar, alarmy, minutnik, stoper i kalendarz ----------
 const pad2=n=>String(n).padStart(2,'0');
 const dkey=d=>d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
-const capF=s=>s.charAt(0).toUpperCase()+s.slice(1);
 const CLD=()=>{ const D=(S.aw.data.clock=S.aw.data.clock||{});
   const d={tab:'clock',style:'a',h24:true,alarms:[],snooze:[],timer:{dur:300,end:0,left:300,run:false},tsnd:'beep',sw:{run:false,t0:0,acc:0,laps:[]},events:{},sel:'',cm:''};
   for(const k in d) if(D[k]===undefined) D[k]=d[k]; return D; };

@@ -35,13 +35,17 @@ function pgLayout(){
   r.setProperty('--pgTH',Math.max(1,Math.round(m.top))+'px'); r.setProperty('--pgLB',Math.max(1,Math.round(l.width))+'px');
   r.setProperty('--pgRB',Math.max(1,rw.offsetParent===null?1:Math.round(rr.width))+'px');
 }
+// v49.9: zrzut (capturePage) ukrytej lub zasłoniętej karty potrafi nigdy się nie zakończyć; wcześniej PGF.busy zostawało wtedy „true” na stałe i gradient przestawał się
+// aktualizować do końca sesji. Teraz każdy odczyt ma limit czasu, a po limicie próbujemy zapasowego odczytu z DOM strony.
+const pgTO=(p,ms)=>new Promise(res=>{ let done=false; const tm=setTimeout(()=>{ if(!done){ done=true; res(null); } },ms); Promise.resolve(p).then(v=>{ if(!done){ done=true; clearTimeout(tm); res(v); } },()=>{ if(!done){ done=true; clearTimeout(tm); res(null); } }); });
 async function pgSample(){
-  if(!PGF||PGF.busy||!pgOn()) return; PGF.busy=true;
+  if(!PGF||!pgOn()) return;
+  if(PGF.busy&&Date.now()-PGF.bt<4000) return; PGF.busy=true; PGF.bt=Date.now();
   try{
     const t=T(), w=t&&views[t.id]; let cols=null;
     if(w&&t.url&&home.style.display==='none'){   // strona startowa: kolor tła interfejsu
-      try{ cols=await window.api.pageColors(w.getWebContentsId(),{w:w.clientWidth,h:w.clientHeight}); }catch{}   // rozmiar karty: proces główny zrzuca tylko pasy przy krawędziach
-      if(!cols||!cols.c){ try{ const c=await w.executeJavaScript(PG_DOM); if(Array.isArray(c)) cols={c}; }catch{} }
+      try{ cols=await pgTO(window.api.pageColors(w.getWebContentsId(),{w:w.clientWidth,h:w.clientHeight}),1800); }catch{}   // rozmiar karty: proces główny zrzuca tylko pasy przy krawędziach
+      if(!cols||!cols.c){ try{ const c=await pgTO(w.executeJavaScript(PG_DOM),1500); if(Array.isArray(c)) cols={c}; }catch{} }
     }
     if(pgOn()) pgSet(cols);
   }catch{}
@@ -53,12 +57,12 @@ function applyPgfx(){
   if(!PGF) return;
   const u=S.settings.ui, on=pgOn(), c=document.body.classList;
   if(PGF.mode!==u.pgmode){ const was=PGF.mode; PGF.mode=u.pgmode; if(was!==undefined) for(const k in views) injG(views[k]); }   // tryb „Kolor motywu” (kolorowanie stron Google) włączony/wyłączony na otwartych kartach
-  c.toggle('pgb',on);
+  c.toggle('pgb',on); c.toggle('pgoff',u.pgmode==='off');   // „Wyłączone”: także puste tło pod stroną jest natywne (białe), a nie w kolorze motywu
   if(on&&!$('pgframe')){ const d=document.createElement('div'); d.id='pgframe'; document.body.insertBefore(d,document.body.firstChild); }
   clearInterval(PGF.iv); PGF.iv=0;
-  if(on){ pgLayout(); pgSample(); PGF.iv=setInterval(()=>{ if(!document.hidden&&document.hasFocus()) pgSample(); },2500); }   // strona może się przewinąć lub zmienić kolor
+  if(on){ pgLayout(); pgSample(); PGF.iv=setInterval(()=>{ if(!document.hidden) pgSample(); },2500); }   // strona może się przewinąć lub zmienić kolor (bez warunku hasFocus: gdy fokus jest w stronie <webview>, dokument okna zwraca false i odświeżanie nigdy nie ruszało)
 }
-PGF={busy:false,iv:0,tm:0,cols:{},mode:undefined};
+PGF={busy:false,bt:0,iv:0,tm:0,cols:{},mode:undefined};
 addEventListener('resize',()=>{ pgLayout(); pgSoon(); });
 try{ const ro=new ResizeObserver(()=>pgLayout()); for(const id of ['main','sidewrap','rwrap','tabrow','bar']) ro.observe($(id)); }catch{}
 applyPgfx();

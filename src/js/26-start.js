@@ -7,6 +7,6 @@ applySettings();
 pwSet(); pushKeys();
 setPanel(!!S.panel); if(S.panel) cw.setAttribute('src','https://claude.ai/new');
 switchFolder(S.folders.find(f=>f.id===S.cur)?S.cur:S.folders[0].id);
-renderBar(); S.aw.open.slice().forEach(id=>openApp(id));
+appsBoot();   // pasek aplikacji i okna z poprzedniej sesji pojawiają się po wczytaniu modułu aplikacji (25-modules.js), jeśli jest włączony
 applyLang();
 bootGo();

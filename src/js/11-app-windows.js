@@ -9,9 +9,8 @@ APPS.forEach(a=>{ if(AIC[a.id]) a.ic=`<svg viewBox="0 0 24 24">${AIC[a.id]}</svg
 const APP=Object.fromEntries(APPS.map(a=>[a.id,a]));
 S.aw=S.aw||{}; S.aw.open=S.aw.open||[]; S.aw.pos=S.aw.pos||{}; S.aw.links=S.aw.links||[]; S.aw.data=S.aw.data||{};
 S.aw.open=S.aw.open.filter(id=>APP[id]); S.settings.apps.bar=S.settings.apps.bar.filter(id=>APP[id]);   // usuń aplikacje, których już nie ma (np. okno testowe)
-let zTop=1, toastT;
+let zTop=1;
 const GRID='<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></svg>';
-function toast(m){ const e=$('toast'); e.textContent=m; e.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>e.classList.remove('show'),2300); }
 function renderBar(){
   const A=S.settings.apps; document.body.classList.toggle('noapps',!A.on);
   $('rl').innerHTML='<h6>APLIKACJE</h6>'+(A.bar.length
@@ -208,4 +207,5 @@ function toggleAdd(id,add){
   if(box) box.innerHTML=appLists(bar,avail);
   renderBar(); save();
 }
-
+// Wołane po wczytaniu js/apps.js (zob. 25-modules.js): pasek aplikacji i okna otwarte w poprzedniej sesji.
+function appsInit(){ renderBar(); S.aw.open.slice().forEach(id=>openApp(id)); applyUi(); }
